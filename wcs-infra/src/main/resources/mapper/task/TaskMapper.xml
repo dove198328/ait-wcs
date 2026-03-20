@@ -1,0 +1,42 @@
+<?xml version="1.0" encoding="UTF-8" ?>
+<!DOCTYPE mapper
+        PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN"
+        "http://mybatis.org/dtd/mybatis-3-mapper.dtd">
+<mapper namespace="cn.aitplus.wcs.infra.persistence.task.TaskMapper">
+
+    <resultMap id="TaskResultMap" type="cn.aitplus.wcs.core.domain.model.Task">
+        <id property="id" column="id"/>
+        <result property="warehouseId" column="warehouse_id"/>
+        <result property="upstreamTaskId" column="upstream_task_id"/>
+        <result property="type" column="task_type"/>
+        <result property="status" column="status"/>
+        <result property="priority" column="priority"/>
+        <result property="payloadJson" column="payload_json"/>
+        <result property="createdAt" column="created_at"/>
+        <result property="updatedAt" column="updated_at"/>
+    </resultMap>
+
+    <select id="selectByWarehouseIdAndId" resultMap="TaskResultMap">
+        select id, warehouse_id, upstream_task_id, task_type, status, priority, payload_json, created_at, updated_at
+        from wcs_task
+        where warehouse_id = #{warehouseId}
+          and id = #{id}
+    </select>
+
+    <select id="selectByWarehouseIdAndBusinessKey" resultMap="TaskResultMap">
+        select id, warehouse_id, upstream_task_id, task_type, status, priority, payload_json, created_at, updated_at
+        from wcs_task
+        where warehouse_id = #{warehouseId}
+          and business_key = #{businessKey}
+    </select>
+
+    <update id="updateStatusByWarehouseIdAndId">
+        update wcs_task
+        set status = #{status},
+            updated_at = now()
+        where warehouse_id = #{warehouseId}
+          and id = #{id}
+    </update>
+
+</mapper>
+
