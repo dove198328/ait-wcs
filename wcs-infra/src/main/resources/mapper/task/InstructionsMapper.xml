@@ -9,6 +9,8 @@
         <result property="subtaskId" column="subtask_id" jdbcType="INTEGER"/>
         <result property="sequence" column="sequence" jdbcType="INTEGER"/>
         <result property="protocol" column="protocol" jdbcType="VARCHAR"/>
+        <result property="commands" column="commands" jdbcType="VARCHAR"
+                typeHandler="cn.aitplus.wcs.infra.config.CommandListTypeHandler"/>
         <result property="params" column="params" jdbcType="VARCHAR"/>
         <result property="status" column="status" jdbcType="VARCHAR"/>
         <result property="createdAt" column="created_at" jdbcType="TIMESTAMP"/>
@@ -87,7 +89,7 @@
                                                         created_at, updated_at, event_logic)
                 <foreach collection="list" item="item" separator=" UNION ALL ">
                     SELECT #{item.taskId}, #{item.subtaskId}, #{item.sequence}, #{item.protocol}, #{item.deviceId},
-                           #{item.commands}, #{item.params}, #{item.status}, #{item.remark}, #{item.messageEvent},
+                           #{item.commands, typeHandler=cn.aitplus.wcs.infra.config.CommandListTypeHandler}, #{item.params}, #{item.status}, #{item.remark}, #{item.messageEvent},
                            #{item.createdAt,jdbcType=TIMESTAMP}, #{item.updatedAt,jdbcType=TIMESTAMP}, #{item.eventLogic,jdbcType=VARCHAR}
                     WHERE NOT EXISTS (
                     SELECT 1 FROM instructions WHERE subtask_id = #{item.subtaskId} AND sequence = #{item.sequence})
@@ -100,7 +102,7 @@
                 SELECT * FROM (VALUES
                 <foreach collection="list" item="item" separator=",">
                     (#{item.taskId}, #{item.subtaskId}, #{item.sequence}, #{item.protocol}, #{item.deviceId},
-                     #{item.commands}, #{item.params}, #{item.status}, #{item.remark}, #{item.messageEvent},
+                     #{item.commands, typeHandler=cn.aitplus.wcs.infra.config.CommandListTypeHandler}, #{item.params}, #{item.status}, #{item.remark}, #{item.messageEvent},
                      #{item.createdAt,jdbcType=TIMESTAMP}, #{item.updatedAt,jdbcType=TIMESTAMP}, #{item.eventLogic,jdbcType=VARCHAR})
                 </foreach>
                 ) AS t(task_id, subtask_id, sequence, protocol, device_id, commands, params, status, remark, message_event, created_at, updated_at, event_logic)
