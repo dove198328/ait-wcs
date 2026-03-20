@@ -36,31 +36,6 @@
             <version>${project.version}</version>
         </dependency>
         <dependency>
-            <groupId>cn.aitplus</groupId>
-            <artifactId>wcs-plugins-startgate</artifactId>
-            <version>${project.version}</version>
-        </dependency>
-        <dependency>
-            <groupId>cn.aitplus</groupId>
-            <artifactId>wcs-plugins-routing</artifactId>
-            <version>${project.version}</version>
-        </dependency>
-        <dependency>
-            <groupId>cn.aitplus</groupId>
-            <artifactId>wcs-plugins-planning</artifactId>
-            <version>${project.version}</version>
-        </dependency>
-        <dependency>
-            <groupId>cn.aitplus</groupId>
-            <artifactId>wcs-plugins-dispatch</artifactId>
-            <version>${project.version}</version>
-        </dependency>
-        <dependency>
-            <groupId>cn.aitplus</groupId>
-            <artifactId>wcs-plugins-exception</artifactId>
-            <version>${project.version}</version>
-        </dependency>
-        <dependency>
             <groupId>org.springframework.boot</groupId>
             <artifactId>spring-boot-starter-web</artifactId>
         </dependency>
