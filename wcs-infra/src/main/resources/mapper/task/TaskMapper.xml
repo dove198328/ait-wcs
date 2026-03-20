@@ -5,38 +5,622 @@
 <mapper namespace="cn.aitplus.wcs.infra.persistence.task.TaskMapper">
 
     <resultMap id="TaskResultMap" type="cn.aitplus.wcs.core.domain.model.Task">
-        <id property="id" column="id"/>
-        <result property="warehouseId" column="warehouse_id"/>
-        <result property="upstreamTaskId" column="upstream_task_id"/>
-        <result property="type" column="task_type"/>
-        <result property="status" column="status"/>
-        <result property="priority" column="priority"/>
-        <result property="payloadJson" column="payload_json"/>
-        <result property="createdAt" column="created_at"/>
-        <result property="updatedAt" column="updated_at"/>
+        <result property="id" column="id" jdbcType="INTEGER"/>
+        <result property="workflowDefId" column="workflow_def_id" jdbcType="VARCHAR"/>
+        <result property="taskName" column="task_name" jdbcType="VARCHAR"/>
+        <result property="priority" column="priority" jdbcType="INTEGER"/>
+        <result property="status" column="status" jdbcType="VARCHAR"/>
+        <result property="startedAt" column="started_at" jdbcType="TIMESTAMP"/>
+        <result property="completedAt" column="completed_at" jdbcType="TIMESTAMP"/>
+        <result property="createdAt" column="created_at" jdbcType="TIMESTAMP"/>
+        <result property="updatedAt" column="updated_at" jdbcType="TIMESTAMP"/>
+        <result property="warehouseId" column="warehouse_id" jdbcType="INTEGER"/>
+        <result property="bizType" column="biz_type" jdbcType="VARCHAR"/>
+        <result property="startPoint" column="start_point" jdbcType="VARCHAR"/>
+        <result property="endPoint" column="end_point" jdbcType="VARCHAR"/>
+        <result property="taskDirection" column="task_direction" jdbcType="VARCHAR"/>
+        <result property="taskNumber" column="task_number" jdbcType="VARCHAR"/>
+        <result property="vehicleId" column="vehicle_id" jdbcType="VARCHAR"/>
+        <result property="taskType" column="task_type" jdbcType="VARCHAR"/>
+        <result property="taskPhase" column="task_phase" jdbcType="VARCHAR"/>
+        <result property="processInstanceId" column="process_instance_id" jdbcType="VARCHAR"/>
+        <result property="isAutoStart" column="is_auto_start" jdbcType="INTEGER"/>
+        <result property="deviceIds" column="device_ids" jdbcType="VARCHAR"/>
+        <result property="location" column="location" jdbcType="VARCHAR"/>
+        <result property="depth" column="depth" jdbcType="VARCHAR"/>
+        <result property="frontEmpty" column="front_empty" jdbcType="VARCHAR"/>
+        <result property="workDirection" column="work_direction" jdbcType="VARCHAR"/>
+        <result property="wmsBizId" column="wms_biz_id" jdbcType="INTEGER"/>
+        <result property="orderNo" column="order_no" jdbcType="VARCHAR"/>
+        <result property="aisleNo" column="aisle_no" jdbcType="INTEGER"/>
+        <result property="processDefinitionId" column="process_definition_id" jdbcType="VARCHAR"/>
+        <result property="taskCategory" column="task_category" jdbcType="VARCHAR"/>
+        <result property="twinsNo" column="twins_no" jdbcType="VARCHAR"/>
     </resultMap>
 
-    <select id="selectByWarehouseIdAndId" resultMap="TaskResultMap">
-        select id, warehouse_id, upstream_task_id, task_type, status, priority, payload_json, created_at, updated_at
-        from wcs_task
-        where warehouse_id = #{warehouseId}
-          and id = #{id}
+    <sql id="base_field">
+        id, workflow_def_id, task_name, priority, status, started_at, completed_at, created_at, updated_at, warehouse_id,
+        biz_type, start_point, end_point, task_direction, task_number, vehicle_id, task_type, task_phase, process_instance_id, is_auto_start,
+        device_ids, location, depth, front_empty, work_direction, wms_biz_id, order_no, aisle_no, process_definition_id, task_category,
+        twins_no
+    </sql>
+
+    <sql id="selectTasksorgan">
+        <choose>
+            <when test="_databaseId == 'sqlserver'">
+                select <include refid="base_field"/> from tasks WITH (NOLOCK)
+            </when>
+            <otherwise>
+                select <include refid="base_field"/> from tasks
+            </otherwise>
+        </choose>
+        <where>
+            <if test="ew.id != null">
+                and id = #{ew.id}
+            </if>
+            <if test="ew.workflowDefId != null">
+                and workflow_def_id = #{ew.workflowDefId}
+            </if>
+            <if test="ew.taskName != null and ew.taskName != ''">
+                and task_name = #{ew.taskName}
+            </if>
+            <if test="ew.priority != null">
+                and priority = #{ew.priority}
+            </if>
+            <if test="ew.status != null and ew.status != ''">
+                and status = #{ew.status}
+            </if>
+            <if test="ew.startedAt != null and ew.startedAt != ''">
+                and started_at = #{ew.startedAt}
+            </if>
+            <if test="ew.completedAt != null and ew.completedAt != ''">
+                and completed_at = #{ew.completedAt}
+            </if>
+            <if test="ew.createdAt != null and ew.createdAt != ''">
+                and created_at = #{ew.createdAt}
+            </if>
+            <if test="ew.updatedAt != null and ew.updatedAt != ''">
+                and updated_at = #{ew.updatedAt}
+            </if>
+            <if test="ew.warehouseId != null">
+                and warehouse_id = #{ew.warehouseId}
+            </if>
+            <if test="ew.bizType != null and ew.bizType != ''">
+                and biz_type = #{ew.bizType}
+            </if>
+            <if test="ew.startPoint != null and ew.startPoint != ''">
+                and start_point = #{ew.startPoint}
+            </if>
+            <if test="ew.endPoint != null and ew.endPoint != ''">
+                and end_point = #{ew.endPoint}
+            </if>
+            <if test="ew.taskDirection != null and ew.taskDirection != ''">
+                and task_direction = #{ew.taskDirection}
+            </if>
+            <if test="ew.taskNumber != null and ew.taskNumber != ''">
+                and task_number = #{ew.taskNumber}
+            </if>
+            <if test="ew.vehicleId != null and ew.vehicleId != ''">
+                and vehicle_id = #{ew.vehicleId}
+            </if>
+            <if test="ew.taskType != null and ew.taskType != ''">
+                and task_type = #{ew.taskType}
+            </if>
+            <if test="ew.taskPhase != null and ew.taskPhase != ''">
+                and task_phase = #{ew.taskPhase}
+            </if>
+            <if test="ew.processInstanceId != null and ew.processInstanceId != ''">
+                and process_instance_id = #{ew.processInstanceId}
+            </if>
+            <if test="ew.isAutoStart != null">
+                and is_auto_start = #{ew.isAutoStart}
+            </if>
+            <if test="ew.deviceIds != null and ew.deviceIds != ''">
+                and device_ids = #{ew.deviceIds}
+            </if>
+            <if test="ew.location != null and ew.location != ''">
+                and location = #{ew.location}
+            </if>
+            <if test="ew.depth != null and ew.depth != ''">
+                and depth = #{ew.depth}
+            </if>
+            <if test="ew.frontEmpty != null"></if>
+            <if test="ew.twinsNo != null and ew.twinsNo != ''">
+                and twins_no = #{ew.twinsNo}
+            </if>
+            <if test="ew.workDirection != null and ew.workDirection != ''">
+                and work_direction = #{ew.workDirection}
+            </if>
+            <if test="ew.wmsBizId != null">
+                and wms_biz_id = #{ew.wmsBizId}
+            </if>
+            <if test="ew.orderNo != null and ew.orderNo != ''">
+                and order_no = #{ew.orderNo}
+            </if>
+            <if test="ew.aisleNo != null">
+                and aisle_no = #{ew.aisleNo}
+            </if>
+            <if test="ew.processDefinitionId != null and ew.processDefinitionId != ''">
+                and process_definition_id = #{ew.processDefinitionId}
+            </if>
+            <if test="ew.taskCategory != null and ew.taskCategory != ''">
+                and task_category = #{ew.taskCategory}
+            </if>
+            <if test="ew.twinsNo != null and ew.twinsNo != ''">
+                and twins_no = #{ew.twinsNo}
+            </if>
+        </where>
+    </sql>
+
+    <!--查询指定行数据-->
+    <select id="queryByPage" resultMap="TaskResultMap">
+        <include refid="selectTasksorgan"/>
     </select>
 
-    <select id="selectByWarehouseIdAndBusinessKey" resultMap="TaskResultMap">
-        select id, warehouse_id, upstream_task_id, task_type, status, priority, payload_json, created_at, updated_at
-        from wcs_task
-        where warehouse_id = #{warehouseId}
-          and business_key = #{businessKey}
+    <select id="queryList" resultMap="TaskResultMap">
+        <include refid="selectTasksorgan"/>
     </select>
 
-    <update id="updateStatusByWarehouseIdAndId">
-        update wcs_task
-        set status = #{status},
-            updated_at = now()
-        where warehouse_id = #{warehouseId}
-          and id = #{id}
+    <select id="insertBatch" parameterType="java.util.List" resultType="long">
+        <choose>
+            <when test="_databaseId == 'sqlserver'">
+                INSERT INTO tasks (workflow_def_id, task_name, priority, started_at, completed_at,
+                                   warehouse_id, biz_type, start_point, end_point, task_direction,
+                                   task_number, vehicle_id, task_type, task_phase, process_instance_id,
+                                   is_auto_start, location, depth, front_empty, work_direction,
+                                   wms_biz_id, order_no, aisle_no, device_ids, process_definition_id,
+                                   twins_no, task_category)
+                OUTPUT INSERTED.id values
+                <foreach collection="list" item="item" separator=" , ">
+                    (#{item.workflowDefId}, #{item.taskName}, #{item.priority}, #{item.startedAt,jdbcType=TIMESTAMP}, #{item.completedAt,jdbcType=TIMESTAMP},
+                     #{item.warehouseId}, #{item.bizType}, #{item.startPoint}, #{item.endPoint}, #{item.taskDirection},
+                     #{item.taskNumber}, #{item.vehicleId}, #{item.taskType}, #{item.taskPhase}, #{item.processInstanceId},
+                     #{item.isAutoStart}, #{item.location}, #{item.depth}, #{item.frontEmpty}, #{item.workDirection},
+                     #{item.wmsBizId}, #{item.orderNo}, #{item.aisleNo}, #{item.deviceIds}, #{item.processDefinitionId},
+                     #{item.twinsNo}, #{item.taskCategory})
+                </foreach>
+            </when>
+            <when test="_databaseId == 'postgresql'">
+                INSERT INTO tasks (workflow_def_id, task_name, priority, started_at, completed_at,
+                                   warehouse_id, biz_type, start_point, end_point, task_direction,
+                                   task_number, vehicle_id, task_type, task_phase, process_instance_id,
+                                   is_auto_start, location, depth, front_empty, work_direction,
+                                   wms_biz_id, order_no, aisle_no, device_ids, process_definition_id,
+                                   twins_no, task_category)
+                values
+                <foreach collection="list" item="item" separator=" , ">
+                    (#{item.workflowDefId}, #{item.taskName}, #{item.priority}, #{item.startedAt,jdbcType=TIMESTAMP}, #{item.completedAt,jdbcType=TIMESTAMP},
+                     #{item.warehouseId}, #{item.bizType}, #{item.startPoint}, #{item.endPoint}, #{item.taskDirection},
+                     #{item.taskNumber}, #{item.vehicleId}, #{item.taskType}, #{item.taskPhase}, #{item.processInstanceId},
+                     #{item.isAutoStart}, #{item.location}, #{item.depth}, #{item.frontEmpty}, #{item.workDirection},
+                     #{item.wmsBizId}, #{item.orderNo}, #{item.aisleNo}, #{item.deviceIds}, #{item.processDefinitionId},
+                    #{item.twinsNo}, #{item.taskCategory})
+                </foreach>
+                RETURNING id
+            </when>
+        </choose>
+    </select>
+
+    <select id="queryTaskStatistics" resultType="com.alibaba.fastjson2.JSONObject">
+        <choose>
+            <when test="_databaseId == 'sqlserver'">
+                SELECT
+                sum(case when status = 'completed' and task_type = 'xsck' THEN 1 ELSE 0 END) todayLoaded,
+                sum(case when status = 'executing' and task_type = 'xsck' THEN 1 ELSE 0 END) todayToLoad,
+                SUM(CASE WHEN status = 'executing' THEN 1 ELSE 0 END) realTimeTasks,
+                SUM(CASE WHEN status = 'pending' and process_instance_id is null THEN 1 ELSE 0 END) queuedTasks,
+                SUM(CASE WHEN status = 'pending' and process_instance_id is null THEN 1 ELSE 0 END) pendingTasks,
+                SUM(CASE WHEN status = 'suspended' THEN 1 ELSE 0 END) abnormalTasks
+                FROM
+                tasks
+                WHERE
+                warehouse_id = #{warehouseId}
+            </when>
+            <when test="_databaseId == 'postgresql'">
+                SELECT
+                sum(case when status = 'completed' and task_type = 'xsck' THEN 1 ELSE 0 END) as "todayLoaded",
+                sum(case when status = 'executing' and task_type = 'xsck' THEN 1 ELSE 0 END) as "todayToLoad",
+                SUM(CASE WHEN status = 'executing' THEN 1 ELSE 0 END) as realTimeTasks,
+                SUM(CASE WHEN status = 'pending' and process_instance_id is null THEN 1 ELSE 0 END) as "queuedTasks",
+                SUM(CASE WHEN status = 'pending' and process_instance_id is null THEN 1 ELSE 0 END) as "pendingTasks",
+                SUM(CASE WHEN status = 'suspended' THEN 1 ELSE 0 END) as "abnormalTasks"
+                FROM
+                tasks
+                WHERE
+                warehouse_id = #{warehouseId}
+            </when>
+        </choose>
+    </select>
+
+    <select id="queryListByDeviceId" resultType="cn.aitplus.wcs.core.domain.model.Task">
+        <choose>
+            <when test="_databaseId == 'sqlserver'">
+                SELECT
+                <if test="limit != null">
+                    TOP (${limit})
+                </if>
+                t.*,
+                -- 解析 location: 巷道-排-列-层-深度 (使用OPENJSON解析，key从0开始)
+                loc.location_column,
+                loc.location_level
+                FROM tasks t WITH (READPAST)
+                CROSS APPLY (
+                SELECT
+                CAST(MAX(CASE WHEN j.[key] = 2 THEN j.value END) AS INT) AS location_column,
+                CAST(MAX(CASE WHEN j.[key] = 3 THEN j.value END) AS INT) AS location_level
+                FROM OPENJSON('["' + REPLACE(t.location, '-', '","') + '"]') j
+                ) loc
+                WHERE t.status = #{task.status}
+                AND t.is_auto_start = #{task.isAutoStart}
+                <if test="task.warehouseId != null">
+                    AND t.warehouse_id = #{task.warehouseId}
+                </if>
+                <if test="task.endPoint != null and task.endPoint != ''">
+                    AND t.end_point = #{task.endPoint}
+                </if>
+                <if test="task.aisleNo != null">
+                    AND t.aisle_no = #{task.aisleNo}
+                </if>
+                <if test="excludedAisles != null and excludedAisles.size() > 0">
+                    AND (t.aisle_no IS NULL OR t.aisle_no NOT IN
+                    <foreach item="aisle" collection="excludedAisles" open="(" separator="," close=")">
+                        #{aisle}
+                    </foreach>
+                    )
+                </if>
+                AND EXISTS (
+                SELECT 1
+                FROM STRING_SPLIT(t.device_ids, ',') s
+                WHERE s.value IN
+                <foreach item="item" index="idx" collection="collection" open="(" separator="," close=")">
+                    #{item}
+                </foreach>
+                )
+                ORDER BY
+                -- 1️ 业务优先级
+                t.priority DESC,
+                -- 0️ 任务类型（出库优先）
+                CASE t.task_category
+                WHEN 'CK' THEN 3
+                WHEN 'YK' THEN 2
+                WHEN 'PD' THEN 1
+                ELSE 0
+                END DESC,
+                -- 2️ 层排序：由高到低（降序）- 提前，整体排序
+                loc.location_level DESC,
+                -- 3️ 列排序：由小到大（升序）- 提前，整体排序
+                loc.location_column ASC,
+                -- 4️ 深度主序：单伸优先，然后是有 twinsNo 的任务
+                CASE
+                WHEN t.depth = 'SINGLE' THEN 3
+                WHEN t.twins_no IS NOT NULL AND t.twins_no != '' THEN 2
+                ELSE 1
+                END DESC,
+                -- 5️ 同组分组：让相同 twinsNo 的任务排在一起
+                CASE
+                WHEN t.twins_no IS NOT NULL AND t.twins_no != '' THEN 0
+                ELSE 1
+                END ASC,
+                t.twins_no ASC,
+                -- 6️ 在相同 twinsNo 内，按 depth 排序：FRONT > BACK
+                CASE
+                WHEN t.depth = 'FRONT' THEN 2
+                WHEN t.depth = 'BACK' THEN
+                CASE
+                WHEN t.front_empty = 1 THEN 2
+                ELSE 1
+                END
+                ELSE 0
+                END DESC,
+                -- 7️ FIFO（创建时间）
+                t.created_at ASC
+            </when>
+            <when test="_databaseId == 'postgresql'">
+                SELECT *,
+                -- 解析 location: 巷道-排-列-层-深度
+                CAST(SPLIT_PART(location, '-', 3) AS INT) AS location_column,
+                CAST(SPLIT_PART(location, '-', 4) AS INT) AS location_level
+                FROM tasks
+                WHERE status = #{task.status}
+                AND is_auto_start = #{task.isAutoStart}
+                <if test="task.warehouseId != null">
+                    AND warehouse_id = #{task.warehouseId}
+                </if>
+                <if test="task.endPoint != null and task.endPoint != ''">
+                    AND end_point = #{task.endPoint}
+                </if>
+                <if test="task.aisleNo != null">
+                    AND aisle_no = #{task.aisleNo}
+                </if>
+                <if test="excludedAisles != null and excludedAisles.size() > 0">
+                    AND (aisle_no IS NULL OR aisle_no NOT IN
+                    <foreach item="aisle" collection="excludedAisles" open="(" separator="," close=")">
+                        #{aisle}
+                    </foreach>
+                    )
+                </if>
+                AND EXISTS (
+                SELECT 1
+                FROM unnest(string_to_array(device_ids, ',')) AS s(value)
+                WHERE s.value IN
+                <foreach item="item" index="idx" collection="collection" open="(" separator="," close=")">
+                    #{item}
+                </foreach>
+                )
+                ORDER BY
+                -- 0️ 任务类型（出库优先）
+                CASE task_category
+                WHEN 'CK' THEN 3
+                WHEN 'YK' THEN 2
+                WHEN 'PD' THEN 1
+                ELSE 0
+                END DESC,
+                -- 1️ 业务优先级
+                priority DESC,
+                -- 7️ FIFO（创建时间）
+                created_at ASC,
+                -- 2️ 层排序：由高到低（降序）- 提前，整体排序
+                location_level DESC,
+                -- 3️ 列排序：由小到大（升序）- 提前，整体排序
+                location_column ASC,
+                -- 4️ 深度主序：单伸优先，然后是有 twinsNo 的任务
+                CASE
+                WHEN depth = 'SINGLE' THEN 3
+                WHEN twins_no IS NOT NULL AND twins_no != '' THEN 2
+                ELSE 1
+                END DESC,
+                -- 5️ 同组分组：让相同 twinsNo 的任务排在一起
+                CASE
+                WHEN twins_no IS NOT NULL AND twins_no != '' THEN 0
+                ELSE 1
+                END ASC,
+                twins_no ASC,
+                -- 6️ 在相同 twinsNo 内，按 depth 排序：FRONT > BACK
+                CASE
+                WHEN depth = 'FRONT' THEN 2
+                WHEN depth = 'BACK' THEN
+                CASE
+                WHEN front_empty = 1 THEN 2
+                ELSE 1
+                END
+                ELSE 0
+                END DESC
+                <if test="limit != null">
+                    LIMIT ${limit}
+                </if>
+            </when>
+        </choose>
+    </select>
+
+    <select id="queryTaskStatisticsByDate" resultType="com.alibaba.fastjson2.JSONObject">
+        <choose>
+            <when test="_databaseId == 'sqlserver'">
+                SELECT ${groupByStr} as date, COUNT(*) as taskCount FROM tasks WHERE created_at >= #{start} AND created_at &lt;= #{end} and warehouse_id = #{warehouseId} GROUP BY ${groupByStr}
+            </when>
+            <when test="_databaseId == 'postgresql'">
+                SELECT ${groupByStr} as "date", COUNT(*) as "taskCount" FROM tasks WHERE created_at >= #{start} AND created_at &lt;= #{end} and warehouse_id = #{warehouseId} GROUP BY ${groupByStr}
+            </when>
+        </choose>
+    </select>
+
+    <!-- 根据组号更新 front_empty 状态 -->
+    <update id="updateFrontEmptyByTwinsNo">
+        <choose>
+            <when test="_databaseId == 'sqlserver'">
+                UPDATE tasks SET front_empty = #{frontEmpty}, updated_at = GETDATE() WHERE twins_no = #{twinsNo} AND depth = 'BACK' AND status IN ('pending', 'suspended') AND (front_empty IS NULL OR front_empty != #{frontEmpty})
+            </when>
+            <when test="_databaseId == 'postgresql'">
+                UPDATE tasks SET front_empty = #{frontEmpty}, updated_at = CURRENT_TIMESTAMP WHERE twins_no = #{twinsNo} AND depth = 'BACK' AND status IN ('pending', 'suspended') AND (front_empty IS NULL OR front_empty != #{frontEmpty})
+            </when>
+        </choose>
     </update>
+
+    <select id="queryEndPointSummary" resultType="com.alibaba.fastjson2.JSONObject">
+        <choose>
+            <when test="_databaseId == 'sqlserver'">
+                SELECT end_point as endPoint, COUNT(*) as taskCount, MIN(created_at) as earliestTime, MAX(priority) as highestPriority,
+                SUM(CASE
+                WHEN depth = 'SINGLE' OR depth = 'FRONT' THEN 1
+                WHEN depth = 'BACK' AND front_empty=1 THEN 1
+                ELSE 0
+                END) as easyCount,
+                warehouse_id as warehouseId
+                FROM tasks
+                WHERE status = 'pending'
+                AND is_auto_start = 1
+                AND end_point IS NOT NULL
+                AND end_point != ''
+                AND warehouse_id  IN (SELECT value FROM STRING_SPLIT(#{warehouseIds}, ','))
+                GROUP BY end_point,warehouse_id
+            </when>
+            <when test="_databaseId == 'postgresql'">
+                SELECT end_point as "endPoint", COUNT(*)::int as "taskCount", MIN(created_at) as "earliestTime", MAX(priority) as "highestPriority",
+                SUM(CASE
+                WHEN depth = 'SINGLE' OR depth = 'FRONT' THEN 1
+                WHEN depth = 'BACK' AND front_empty=1 THEN 1
+                ELSE 0
+                END)::int as "easyCount",
+                warehouse_id as "warehouseId"
+                FROM tasks
+                WHERE status = 'pending'
+                AND is_auto_start = 1
+                AND end_point IS NOT NULL
+                AND end_point != ''
+                AND warehouse_id = ANY (string_to_array(#{warehouseIds}, ',')::int[])
+                GROUP BY end_point,warehouse_id
+            </when>
+        </choose>
+    </select>
+
+    <select id="queryEarliestTaskTimeByEndPoint" resultType="date">
+        <choose>
+            <when test="_databaseId == 'sqlserver'">
+                SELECT TOP 1 created_at FROM tasks WHERE status = 'pending' AND is_auto_start = 1 AND end_point = #{endPoint} and warehouse_id =#{warehouseId} ORDER BY created_at ASC
+            </when>
+            <when test="_databaseId == 'postgresql'">
+                SELECT created_at FROM tasks WHERE status = 'pending' AND is_auto_start = 1 AND end_point = #{endPoint} and warehouse_id =#{warehouseId} ORDER BY created_at ASC LIMIT 1
+            </when>
+        </choose>
+    </select>
+
+    <select id="queryById" resultType="cn.aitplus.wcs.core.domain.model.Task">
+        <choose>
+            <when test="_databaseId == 'sqlserver'">
+                select
+                    <include refid="base_field"/>
+                from tasks WITH (NOLOCK) where id = #{id}
+            </when>
+            <when test="_databaseId == 'postgresql'">
+                select
+                    <include refid="base_field"/>
+                from tasks where id = #{id}
+            </when>
+        </choose>
+    </select>
+
+    <select id="selectDevicesById" resultType="java.lang.String">
+        select device_ids from tasks where id = #{id}
+    </select>
+
+    <select id="queryEndPointSummaryOne" resultType="com.alibaba.fastjson2.JSONObject">
+        <choose>
+            <when test="_databaseId == 'sqlserver'">
+                SELECT
+                end_point as endPoint,
+                COUNT(*) as taskCount,
+                MIN(created_at) as earliestTime,
+                MAX(priority) as highestPriority,
+                SUM(CASE
+                WHEN depth = 'SINGLE' OR depth = 'FRONT' THEN 1
+                WHEN depth = 'BACK' AND front_empty=1 THEN 1
+                ELSE 0 END) as easyCount,
+                warehouse_id as warehouseId
+                FROM tasks
+                WHERE status = 'pending'
+                AND is_auto_start = 1
+                AND end_point = #{endPoint}
+                AND warehouse_id = #{warehouseId}
+                GROUP BY end_point, warehouse_id
+            </when>
+            <when test="_databaseId == 'postgresql'">
+                SELECT
+                end_point as "endPoint",
+                COUNT(*)::int as "taskCount",
+                MIN(created_at) as "earliestTime",
+                MAX(priority) as "highestPriority",
+                SUM(CASE
+                WHEN depth = 'SINGLE' OR depth = 'FRONT' THEN 1
+                WHEN depth = 'BACK' AND front_empty=1 THEN 1
+                ELSE 0 END)::int as "easyCount",
+                warehouse_id as "warehouseId"
+                FROM tasks
+                WHERE status = 'pending'
+                AND is_auto_start = 1
+                AND end_point = #{endPoint}
+                AND warehouse_id = #{warehouseId}
+                GROUP BY end_point, warehouse_id
+            </when>
+        </choose>
+    </select>
+
+    <!-- 按组号与端点选择一条待处理任务（自启动） -->
+    <select id="selectOnePendingByTwinsNo" resultMap="TaskResultMap">
+        <choose>
+            <when test="_databaseId == 'sqlserver'">
+                SELECT TOP (1) <include refid="base_field"/>
+                FROM tasks t
+                WHERE t.status = 'pending'
+                AND t.is_auto_start = 1
+                AND t.end_point = #{endPoint}
+                AND t.warehouse_id = #{warehouseId}
+                AND t.twins_no = #{twinsNo}
+                ORDER BY ISNULL(t.priority,1) DESC, t.created_at ASC
+            </when>
+            <when test="_databaseId == 'postgresql'">
+                SELECT <include refid="base_field"/>
+                FROM tasks t
+                WHERE t.status = 'pending'
+                AND t.is_auto_start = 1
+                AND t.end_point = #{endPoint}
+                AND t.warehouse_id = #{warehouseId}
+                AND t.twins_no = #{twinsNo}
+                ORDER BY COALESCE(t.priority,1) DESC, t.created_at ASC
+                LIMIT 1
+            </when>
+        </choose>
+    </select>
+
+    <select id="queryByProcessInstanceId" parameterType="java.lang.String" resultMap="TaskResultMap">
+        <choose>
+            <when test="_databaseId == 'sqlserver'">
+                select TOP 1
+                <include refid="base_field"/>
+                from tasks where process_instance_id = #{processInstanceId}
+            </when>
+            <when test="_databaseId == 'postgresql'">
+                select
+                    <include refid="base_field"/>
+                from tasks where process_instance_id = #{processInstanceId}
+                limit 1
+            </when>
+        </choose>
+    </select>
+
+    <select id="selectOneFromWms" resultMap="TaskResultMap">
+        <choose>
+            <when test="_databaseId == 'sqlserver'">
+                select TOP 1
+                <include refid="base_field"/>
+                from tasks where task_category = #{taskCategory} AND wms_biz_id = #{wmsBizId} AND task_number = #{taskNumber}
+            </when>
+            <when test="_databaseId == 'postgresql'">
+                select
+                <include refid="base_field"/>
+                from tasks where task_category = #{taskCategory} AND wms_biz_id = #{wmsBizId} AND task_number = #{taskNumber} limit 1
+            </when>
+        </choose>
+    </select>
+
+    <update id="updateNonExecuteTaskLocation">
+        UPDATE tasks
+        SET location = #{location},start_point = #{startPoint},twins_no = #{twinsNo}, depth = #{depth}
+        WHERE task_number = #{taskNumber}
+          and status not in ('executing','completed')
+    </update>
+
+    <!-- 查询设备可执行的所有endpoint列表（去重） -->
+    <select id="queryCompatibleEndpointsByDeviceId" resultType="java.lang.String">
+        <choose>
+            <when test="_databaseId == 'sqlserver'">
+                SELECT DISTINCT t.end_point
+                FROM tasks t WITH (READPAST)
+                WHERE t.status = 'pending'
+                AND t.is_auto_start = 1
+                AND t.warehouse_id = #{warehouseId}
+                AND t.end_point IS NOT NULL
+                AND t.end_point != ''
+                AND EXISTS (
+                SELECT 1
+                FROM STRING_SPLIT(t.device_ids, ',') s
+                WHERE s.value = #{deviceId}
+                )
+            </when>
+            <when test="_databaseId == 'postgresql'">
+                SELECT DISTINCT t.end_point
+                FROM tasks t
+                WHERE t.status = 'pending'
+                AND t.is_auto_start = 1
+                AND t.warehouse_id = #{warehouseId}
+                AND t.end_point IS NOT NULL
+                AND t.end_point != ''
+                AND EXISTS (
+                SELECT 1
+                FROM unnest(string_to_array(t.device_ids, ',')) s(value)
+                WHERE s.value = #{deviceId}
+                )
+            </when>
+        </choose>
+    </select>
 
 </mapper>
 

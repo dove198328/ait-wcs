@@ -1,0 +1,115 @@
+<?xml version="1.0" encoding="UTF-8" ?>
+<!DOCTYPE mapper
+        PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN"
+        "http://mybatis.org/dtd/mybatis-3-mapper.dtd">
+<mapper namespace="cn.aitplus.wcs.infra.persistence.task.InstructionsMapper">
+
+    <resultMap id="InstructionsMap" type="cn.aitplus.wcs.core.domain.model.Instruction">
+        <result property="id" column="id" jdbcType="INTEGER"/>
+        <result property="subtaskId" column="subtask_id" jdbcType="INTEGER"/>
+        <result property="sequence" column="sequence" jdbcType="INTEGER"/>
+        <result property="protocol" column="protocol" jdbcType="VARCHAR"/>
+        <result property="params" column="params" jdbcType="VARCHAR"/>
+        <result property="status" column="status" jdbcType="VARCHAR"/>
+        <result property="createdAt" column="created_at" jdbcType="TIMESTAMP"/>
+        <result property="updatedAt" column="updated_at" jdbcType="TIMESTAMP"/>
+        <result property="taskId" column="task_id" jdbcType="INTEGER"/>
+        <result property="remark" column="remark" jdbcType="VARCHAR"/>
+        <result property="deviceId" column="device_id" jdbcType="VARCHAR"/>
+        <result property="messageEvent" column="message_event" jdbcType="TINYINT"/>
+        <result property="eventLogic" column="event_logic" jdbcType="VARCHAR"/>
+    </resultMap>
+
+    <sql id="selectInstructionsorgan">
+        select id, subtask_id, sequence, protocol, commands, params, status, created_at, updated_at, task_id, remark, device_id, message_event, event_logic from instructions
+        <where>
+            <if test="ew.id != null">
+                and id = #{ew.id}
+            </if>
+            <if test="ew.subtaskId != null">
+                and subtask_id = #{ew.subtaskId}
+            </if>
+            <if test="ew.sequence != null">
+                and sequence = #{ew.sequence}
+            </if>
+            <if test="ew.protocol != null and ew.protocol != ''">
+                and protocol = #{ew.protocol}
+            </if>
+            <if test="ew.commands != null">
+                and commands = #{ew.commands}
+            </if>
+            <if test="ew.params != null and ew.params != ''">
+                and params = #{ew.params}
+            </if>
+            <if test="ew.status != null and ew.status != ''">
+                and status = #{ew.status}
+            </if>
+            <if test="ew.createdAt != null and ew.createdAt != ''">
+                and created_at = #{ew.createdAt}
+            </if>
+            <if test="ew.updatedAt != null and ew.updatedAt != ''">
+                and updated_at = #{ew.updatedAt}
+            </if>
+            <if test="ew.taskId != null">
+                and task_id = #{ew.taskId}
+            </if>
+            <if test="ew.remark != null and ew.remark != ''">
+                and remark = #{ew.remark}
+            </if>
+            <if test="ew.deviceId != null and ew.deviceId != ''">
+                and device_id = #{ew.deviceId}
+            </if>
+            <if test="ew.messageEvent != null">
+                and message_event = #{ew.messageEvent}
+            </if>
+            <if test="ew.eventLogic != null and ew.eventLogic != ''">
+                and event_logic = #{ew.eventLogic}
+            </if>
+        </where>
+        order by sequence
+    </sql>
+
+    <!--查询指定行数据-->
+    <select id="queryByPage" resultMap="InstructionsMap">
+        <include refid="selectInstructionsorgan"/>
+    </select>
+
+    <select id="queryList" resultMap="InstructionsMap">
+        <include refid="selectInstructionsorgan"/>
+    </select>
+
+    <insert id="insertbatch" parameterType="java.util.List">
+        <choose>
+            <when test="_databaseId == 'sqlserver'">
+                <!-- 纯 INSERT；重复键自动忽略 -->
+                INSERT INTO instructions WITH (ROWLOCK)(task_id, subtask_id, sequence, protocol, device_id,
+                                                        commands, params, status, remark, message_event,
+                                                        created_at, updated_at, event_logic)
+                <foreach collection="list" item="item" separator=" UNION ALL ">
+                    SELECT #{item.taskId}, #{item.subtaskId}, #{item.sequence}, #{item.protocol}, #{item.deviceId},
+                           #{item.commands}, #{item.params}, #{item.status}, #{item.remark}, #{item.messageEvent},
+                           #{item.createdAt,jdbcType=TIMESTAMP}, #{item.updatedAt,jdbcType=TIMESTAMP}, #{item.eventLogic,jdbcType=VARCHAR}
+                    WHERE NOT EXISTS (
+                    SELECT 1 FROM instructions WHERE subtask_id = #{item.subtaskId} AND sequence = #{item.sequence})
+                </foreach>
+            </when>
+            <when test="_databaseId == 'postgresql'">
+                INSERT INTO instructions (task_id, subtask_id, sequence, protocol, device_id,
+                                          commands, params, status, remark, message_event,
+                                          created_at, updated_at, event_logic)
+                SELECT * FROM (VALUES
+                <foreach collection="list" item="item" separator=",">
+                    (#{item.taskId}, #{item.subtaskId}, #{item.sequence}, #{item.protocol}, #{item.deviceId},
+                     #{item.commands}, #{item.params}, #{item.status}, #{item.remark}, #{item.messageEvent},
+                     #{item.createdAt,jdbcType=TIMESTAMP}, #{item.updatedAt,jdbcType=TIMESTAMP}, #{item.eventLogic,jdbcType=VARCHAR})
+                </foreach>
+                ) AS t(task_id, subtask_id, sequence, protocol, device_id, commands, params, status, remark, message_event, created_at, updated_at, event_logic)
+                WHERE NOT EXISTS (
+                SELECT 1 FROM instructions i
+                WHERE i.subtask_id = t.subtask_id AND i.sequence = t.sequence
+                )
+            </when>
+        </choose>
+    </insert>
+
+</mapper>

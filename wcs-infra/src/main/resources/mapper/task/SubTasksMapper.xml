@@ -1,0 +1,272 @@
+<?xml version="1.0" encoding="UTF-8" ?>
+<!DOCTYPE mapper
+        PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN"
+        "http://mybatis.org/dtd/mybatis-3-mapper.dtd">
+<mapper namespace="cn.aitplus.wcs.infra.persistence.task.SubTasksMapper">
+
+    <resultMap id="SubtasksMap" type="cn.aitplus.wcs.core.domain.model.SubTasks">
+        <result property="id" column="id" jdbcType="INTEGER"/>
+        <result property="taskId" column="task_id" jdbcType="INTEGER"/>
+        <result property="subtaskDefId" column="subtask_def_id" jdbcType="VARCHAR"/>
+        <result property="name" column="name" jdbcType="VARCHAR"/>
+        <result property="priority" column="priority" jdbcType="INTEGER"/>
+        <result property="status" column="status" jdbcType="VARCHAR"/>
+        <result property="compensation" column="compensation" jdbcType="VARCHAR"/>
+        <result property="allowManual" column="allow_manual" jdbcType="INTEGER"/>
+        <result property="createdAt" column="created_at" jdbcType="TIMESTAMP"/>
+        <result property="updatedAt" column="updated_at" jdbcType="TIMESTAMP"/>
+        <result property="warehouseId" column="warehouse_id" jdbcType="INTEGER"/>
+        <result property="currentInstructionIndex" column="current_instruction_index" jdbcType="INTEGER"/>
+        <result property="completedAt" column="completed_at" jdbcType="TIMESTAMP"/>
+        <result property="remark" column="remark" jdbcType="VARCHAR"/>
+        <result property="selectedDeviceId" column="selected_device_id" jdbcType="INTEGER"/>
+        <result property="activityInstanceId" column="activity_instance_id" jdbcType="VARCHAR"/>
+        <result property="area" column="area" jdbcType="VARCHAR"/>
+        <result property="workflowDefId" column="workflow_def_id" jdbcType="VARCHAR"/>
+        <result property="isStartNextProcess" column="is_start_next_process" jdbcType="INTEGER"/>
+        <result property="freeDeviceId" column="free_device_id" jdbcType="VARCHAR"/>
+        <result property="checkAisle" column="check_aisle" jdbcType="INTEGER"/>
+    </resultMap>
+
+    <sql id="base_field">
+        id, task_id, subtask_def_id, name, priority, status, compensation, allow_manual, created_at, updated_at,
+        warehouse_id, current_instruction_index, completed_at, remark, selected_device_id, activity_instance_id, area, workflow_def_id, free_device_id, check_aisle
+    </sql>
+
+    <sql id="selectSubtasksorgan">
+        select <include refid="base_field"/> from subtasks
+        <where>
+            <if test="ew.id != null">
+                and id = #{ew.id}
+            </if>
+            <if test="ew.taskId != null">
+                and task_id = #{ew.taskId}
+            </if>
+            <if test="ew.subtaskDefId != null and ew.subtaskDefId != ''">
+                and subtask_def_id = #{ew.subtaskDefId}
+            </if>
+            <if test="ew.name != null and ew.name != ''">
+                and name = #{ew.name}
+            </if>
+            <if test="ew.priority != null">
+                and priority = #{ew.priority}
+            </if>
+            <if test="ew.status != null and ew.status != ''">
+                and status = #{ew.status}
+            </if>
+            <if test="ew.compensation != null and ew.compensation != ''">
+                and compensation = #{ew.compensation}
+            </if>
+            <if test="ew.allowManual != null">
+                and allow_manual = #{ew.allowManual}
+            </if>
+            <if test="ew.createdAt != null and ew.createdAt != ''">
+                and created_at = #{ew.createdAt}
+            </if>
+            <if test="ew.updatedAt != null and ew.updatedAt != ''">
+                and updated_at = #{ew.updatedAt}
+            </if>
+            <if test="ew.warehouseId != null">
+                and warehouse_id = #{ew.warehouseId}
+            </if>
+            <if test="ew.currentInstructionIndex != null">
+                and current_instruction_index = #{ew.currentInstructionIndex}
+            </if>
+            <if test="ew.completedAt != null and ew.completedAt != ''">
+                and completed_at = #{ew.completedAt}
+            </if>
+            <if test="ew.remark != null and ew.remark != ''">
+                and remark = #{ew.remark}
+            </if>
+            <if test="ew.selectedDeviceId != null">
+                and selected_device_id = #{ew.selectedDeviceId}
+            </if>
+            <if test="ew.activityInstanceId != null and ew.activityInstanceId != ''">
+                and activity_instance_id = #{ew.activityInstanceId}
+            </if>
+            <if test="ew.area != null and ew.area != ''">
+                and area = #{ew.area}
+            </if>
+            <if test="ew.workflowDefId != null and ew.workflowDefId != ''">
+                and workflow_def_id = #{ew.workflowDefId}
+            </if>
+            <if test="ew.isStartNextProcess != null">
+                and is_start_next_process = #{ew.isStartNextProcess}
+            </if>
+            <if test="ew.freeDeviceId != null and ew.freeDeviceId != ''">
+                and free_device_id = #{ew.freeDeviceId}
+            </if>
+            <if test="ew.checkAisle != null">
+                and check_aisle = #{ew.checkAisle}
+            </if>
+        </where>
+    </sql>
+
+    <!--查询指定行数据-->
+    <select id="queryByPage" resultMap="SubtasksMap">
+        <include refid="selectSubtasksorgan"/>
+    </select>
+
+    <select id="queryList" resultMap="SubtasksMap">
+        <include refid="selectSubtasksorgan"/>
+    </select>
+
+    <!-- 批量插入子任务及其指令 -->
+    <select id="insertbatch" parameterType="java.util.List" resultType="long">
+        <choose>
+            <when test="_databaseId == 'sqlserver'">
+                INSERT INTO subtasks (task_id, subtask_def_id, name, priority, status,
+                                      warehouse_id, compensation, allow_manual, workflow_def_id, area,
+                                      selected_device_id, current_instruction_index, is_start_next_process, free_device_id, created_at,
+                                      updated_at, check_aisle, bind_ddj)
+                OUTPUT INSERTED.id values
+                <foreach collection="list" item="item" separator=" , ">
+                    (#{item.taskId}, #{item.subtaskDefId}, #{item.name}, #{item.priority}, #{item.status},
+                     #{item.warehouseId}, #{item.compensation}, #{item.allowManual}, #{item.workflowDefId}, #{item.area},
+                     #{item.selectedDeviceId}, #{item.currentInstructionIndex}, #{item.isStartNextProcess}, #{item.freeDeviceId}, #{item.createdAt},
+                     #{item.updatedAt}, #{item.checkAisle}, #{item.bindDDJ})
+                </foreach>
+            </when>
+            <when test="_databaseId == 'postgresql'">
+                INSERT INTO subtasks (task_id, subtask_def_id, name, priority, status,
+                                      warehouse_id, compensation, allow_manual, workflow_def_id, area,
+                                      selected_device_id, current_instruction_index, is_start_next_process, free_device_id, created_at,
+                                      updated_at, check_aisle, bind_ddj)
+                values
+                <foreach collection="list" item="item" separator=" , ">
+                    (#{item.taskId}, #{item.subtaskDefId}, #{item.name}, #{item.priority}, #{item.status},
+                     #{item.warehouseId}, #{item.compensation}, #{item.allowManual}, #{item.workflowDefId}, #{item.area},
+                     #{item.selectedDeviceId}, #{item.currentInstructionIndex}, #{item.isStartNextProcess}, #{item.freeDeviceId}, #{item.createdAt},
+                     #{item.updatedAt}, #{item.checkAisle}, #{item.bindDDJ})
+                </foreach>
+                RETURNING id
+            </when>
+        </choose>
+    </select>
+
+    <!-- 批量更新子任务状态 -->
+    <update id="batchUpdateStatus">
+        <choose>
+            <when test="_databaseId == 'sqlserver'">
+                UPDATE subtasks SET status = #{status} WHERE id IN (SELECT value FROM STRING_SPLIT(#{subtaskIds}, ','))
+            </when>
+            <when test="_databaseId == 'postgresql'">
+                UPDATE subtasks SET status = #{status} WHERE id = ANY (string_to_array(#{subtaskIds}, ',')::int[])
+            </when>
+        </choose>
+    </update>
+
+    <!-- 查询指定仓库中的前N条子任务记录 -->
+    <select id="findTopNSubtasks" resultMap="SubtasksMap">
+        <!-- SQL Server 方言 -->
+        <choose>
+            <when test="_databaseId == 'sqlserver'">
+                SELECT TOP (#{limit}) * FROM subtasks WHERE warehouse_id = #{warehouseId} AND status = #{status} ORDER BY priority DESC, created_at ASC
+            </when>
+            <!-- MySQL 方言 -->
+            <when test="_databaseId == 'mysql'">
+                SELECT * FROM subtasks WHERE warehouse_id = #{warehouseId} AND status = #{status} ORDER BY priority DESC, created_at ASC LIMIT #{limit}
+            </when>
+            <!-- Oracle 方言 -->
+            <when test="_databaseId == 'oracle'">
+                SELECT * FROM (
+                SELECT * FROM subtasks
+                WHERE warehouse_id = #{warehouseId} AND status = #{status}
+                ORDER BY priority DESC, created_at ASC
+                ) WHERE ROWNUM &lt;= #{limit}
+            </when>
+            <!-- PostgreSQL 方言 -->
+            <when test="_databaseId == 'postgresql'">
+                SELECT * FROM subtasks
+                WHERE warehouse_id = #{warehouseId} AND status = #{status}
+                ORDER BY priority DESC, created_at ASC
+                LIMIT #{limit}
+            </when>
+            <!-- 默认实现（假设SQL Server语法） -->
+            <otherwise>
+                SELECT TOP (#{limit}) * FROM subtasks
+                WHERE warehouse_id = #{warehouseId} AND status = #{status}
+                ORDER BY priority DESC, created_at ASC
+            </otherwise>
+        </choose>
+    </select>
+
+    <!-- 插入子任务,如果已存在则直接返回该记录 (task_id + subtask_def_id) -->
+    <select id="upsertSubtask" parameterType="cn.aitplus.wcs.core.domain.model.SubTasks" resultType="cn.aitplus.wcs.core.domain.model.SubTasks">
+        <choose>
+            <when test="_databaseId == 'sqlserver'">
+                -- 两段式 upsert，使用键范围锁，避免 MERGE 锁竞争
+                UPDATE subtasks WITH (UPDLOCK, HOLDLOCK)
+                SET updated_at = GETDATE()
+                WHERE task_id = #{taskId} AND subtask_def_id = #{subtaskDefId}
+                IF @@ROWCOUNT = 0
+                BEGIN
+                INSERT INTO subtasks (task_id, subtask_def_id, name, priority, status,
+                                      warehouse_id, workflow_def_id, area, current_instruction_index, activity_instance_id,
+                                      selected_device_id, is_start_next_process, free_device_id, created_at, updated_at,
+                                      check_aisle, bind_ddj)
+                VALUES (#{taskId}, #{subtaskDefId}, #{name}, #{priority}, #{status},
+                        #{warehouseId}, #{workflowDefId}, #{area}, #{currentInstructionIndex}, #{activityInstanceId},
+                        #{selectedDeviceId}, #{isStartNextProcess}, #{freeDeviceId}, #{createdAt}, #{updatedAt},
+                        #{checkAisle}, #{bindDDJ})
+                END
+                SELECT <include refid="base_field"/> FROM subtasks WITH (HOLDLOCK)
+                WHERE task_id = #{taskId} AND subtask_def_id = #{subtaskDefId}
+            </when>
+            <when test="_databaseId == 'postgresql'">
+                WITH upsert AS (
+                -- 尝试更新已有记录
+                UPDATE subtasks
+                SET updated_at = CURRENT_TIMESTAMP
+                WHERE task_id = #{taskId} AND subtask_def_id = #{subtaskDefId}
+                RETURNING <include refid="base_field"/>
+                ),
+                ins AS (
+                -- 如果不存在，插入新记录
+                INSERT INTO subtasks (task_id, subtask_def_id, name, priority, status,
+                                      warehouse_id, created_at, updated_at, workflow_def_id, area,
+                                      current_instruction_index, activity_instance_id, selected_device_id, is_start_next_process, free_device_id,
+                                      check_aisle, bind_ddj)
+                SELECT #{taskId}, #{subtaskDefId}, #{name}, #{priority}, #{status},
+                       #{warehouseId}, #{createdAt}, #{updatedAt}, #{workflowDefId}, #{area},
+                       #{currentInstructionIndex}, #{activityInstanceId}, #{selectedDeviceId}, #{isStartNextProcess}, #{freeDeviceId},
+                       #{checkAisle}, #{bindDDJ}
+                WHERE NOT EXISTS (
+                SELECT 1 FROM subtasks WHERE task_id = #{taskId} AND subtask_def_id = #{subtaskDefId}
+                )
+                RETURNING <include refid="base_field"/>
+                )
+                SELECT * FROM upsert UNION ALL SELECT * FROM ins
+            </when>
+        </choose>
+    </select>
+
+    <select id="queryById" resultType="cn.aitplus.wcs.core.domain.model.SubTasks">
+        SELECT
+        <include refid="base_field"/>
+        FROM subtasks WHERE id = #{id}
+    </select>
+
+    <select id="queryNoCompletedByTaskId" parameterType="java.lang.Long" resultType="cn.aitplus.wcs.core.domain.model.SubTasks">
+        <choose>
+            <when test="_databaseId == 'sqlserver'">
+                select TOP 1
+                    <include refid="base_field"/>
+                FROM subtasks
+                where task_id = #{taskId}
+                and status != 'completed'
+                order by id asc
+            </when>
+            <when test="_databaseId == 'postgresql'">
+                select
+                    <include refid="base_field"/>
+                FROM subtasks
+                where task_id = #{taskId}
+                and status != 'completed'
+                order by id asc
+                LIMIT 1
+            </when>
+        </choose>
+    </select>
+
+</mapper>
