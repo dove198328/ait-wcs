@@ -1,99 +1,187 @@
 ﻿package cn.aitplus.wcs.core.domain.model;
 
+import jakarta.validation.constraints.NotEmpty;
+import jakarta.validation.constraints.NotNull;
+import lombok.AllArgsConstructor;
+import lombok.Builder;
+import lombok.Data;
+import lombok.NoArgsConstructor;
+
 import java.time.LocalDateTime;
 import java.util.List;
-import javax.validation.constraints.NotEmpty;
-import javax.validation.constraints.NotNull;
-import lombok.Data;
+
+/**
+ * 主任务实体类
+ */
 
 @Data
+@TableName("tasks")
+@Builder
+@AllArgsConstructor
+@NoArgsConstructor
+@Api(tags = "主任务管理")
 public class Task {
-    // 主键
+    @TableId(value = "id", type = IdType.AUTO)
+    @ApiModelProperty("主任务ID")
     private Long id;
-    // 流程定义ID
+
+    @TableField("workflow_def_id")
+    @ApiModelProperty("流程定义ID")
     @NotNull(message = "流程定义ID不能为空")
     private String workflowDefId;
-    // 主任务名称
+
+    @TableField("task_name")
+    @ApiModelProperty("主任务名称")
     @NotEmpty(message = "主任务名称不能为空")
     private String taskName;
-    // 主任务优先级
+
+    @TableField("priority")
+    @ApiModelProperty("主任务优先级")
     private Integer priority;
-    // 主任务状态
+
+    @TableField("status")
+    @ApiModelProperty("主任务状态")
     private String status;
-    // 开始时间
+
+    @TableField("started_at")
+    @ApiModelProperty("开始时间")
     private LocalDateTime startedAt;
-    // 完成时间
+
+    @TableField("completed_at")
+    @ApiModelProperty("完成时间")
     private LocalDateTime completedAt;
-    // 创建时间
+
+    @TableField(value = "created_at", fill = FieldFill.INSERT)
+    @ApiModelProperty("创建时间")
     private LocalDateTime createdAt;
-    // 更新时间
+
+    @TableField(value = "updated_at", fill = FieldFill.INSERT_UPDATE)
+    @ApiModelProperty("更新时间")
     private LocalDateTime updatedAt;
-    // 仓库ID
+
+    @TableField("warehouse_id")
+    @ApiModelProperty("仓库ID")
     private Long warehouseId;
-    // 业务类型主类
+
+    @TableField("biz_type")
+    @ApiModelProperty("业务类型主类")
     private String bizType;
-    // 任务起点
+
+    @TableField("start_point")
+    @ApiModelProperty("任务起点")
     private String startPoint;
-    // 任务终点
+
+    @TableField("end_point")
+    @ApiModelProperty("任务终点")
     private String endPoint;
-    // 任务流向
+
+    @TableField("task_direction")
+    @ApiModelProperty("任务流向")
     private String taskDirection;
-    // 任务编号
+
+    @TableField("task_number")
+    @ApiModelProperty("任务编号")
     private String taskNumber;
-    // 载具号
+
+    @TableField("vehicle_id")
+    @ApiModelProperty("载具号")
     private String vehicleId;
-    // 任务类型
+
+    @TableField("task_type")
+    @ApiModelProperty("任务类型,业务类型子类")
     private String taskType;
-    // 任务阶段
+
+    @TableField("task_phase")
+    @ApiModelProperty("任务阶段")
     private String taskPhase;
-    // 流程实例ID
+
+    @TableField("process_instance_id")
+    @ApiModelProperty("流程实例ID")
     private String processInstanceId;
-    // 是否自动启动 1.是 0.否
+
+    @TableField(value = "is_auto_start")
+    @ApiModelProperty
     private Integer isAutoStart;
-    // 设备ID列表
+
+    @TableField("device_ids")
+    @ApiModelProperty("巷道口执行指令设备ID列表,逗号分隔")
     private String deviceIds;
+
     /**
      * 货位编码，例如 "A-01-01-02-F"  (巷道-列-层-深度)
      * 深度 F = Front 前排，B = Back 后排，S = Single 单深
      */
+    @TableField("location")
+    @ApiModelProperty("货位编码 (巷道-排-列-层-深度)")
     private String location;
+
     /**
      * 货位深度类型：SINGLE | FRONT | BACK
      */
+    @TableField("depth")
+    @ApiModelProperty("货位深度类型 SINGLE|FRONT|BACK")
     private String depth;
+
     /**
      * 对于 BACK 货位，标识前排是否为空；
      * true  表示前排无货，可直接存取；
      * false 表示前排有货，需要合并或移库。
      * 对于 SINGLE 或 FRONT 可置 null/true
      */
+    @TableField("front_empty")
+    @ApiModelProperty("后排货位前排是否为空 (仅当 depth=BACK 有意义)")
     private Boolean frontEmpty;
+
     /**
      * 作业方向 IN/OUT/MOVE_LOCAL/MOVE_CROSS
      * 参见 WorkDirection 枚举
      */
+    @TableField("work_direction")
+    @ApiModelProperty("作业方向 IN/OUT/MOVE_LOCAL/MOVE_CROSS")
     private String workDirection;
-    // WMS业务ID
+
+    @TableField("wms_biz_id")
+    @ApiModelProperty("WMS业务ID")
     private Long wmsBizId;
-    // WMS订单号
+
+    @TableField("order_no")
+    @ApiModelProperty("WMS订单号")
     private String orderNo;
-    // 巷道号
+
+    @TableField("aisle_no")
+    @ApiModelProperty("巷道号")
     private Integer aisleNo;
-    // 流程定义ID
+
+    @TableField("process_definition_id")
+    @ApiModelProperty
     private String processDefinitionId;
-    // 业务类型：出库 OUTBOUND入库 INBOUND移库 INTERNAL盘点 INVENTORY
+
+    @TableField("task_category")
+    @ApiModelProperty("业务类型：出库 OUTBOUND入库 INBOUND移库 INTERNAL盘点 INVENTORY")
     private String taskCategory;
-    // 组号
+
+    @TableField("twins_no")
+    @ApiModelProperty("组号")
     private String twinsNo;
-    // 子任务列表
-    private List<SubTasks> subtasks;
-    // 扫码器设备ID
+
+    @TableField(exist = false)
+    @ApiModelProperty("子任务列表")
+    private List<SubTask> subtasks;
+
+    @TableField(exist = false)
+    @ApiModelProperty("扫码器设备ID")
     private String scannerDeviceId;
-    // 是否临时移库任务
+
+    @TableField(exist = false)
+    @ApiModelProperty("是否临时移库任务")
     private Boolean isCK;
-    // 任务下发情况
+
+    @TableField(exist = false)
+    @ApiModelProperty("任务下发情况")
     private Integer taskDistribution;
-    // 入库标志，true-库内，false-库外
+
+    @TableField(exist = false)
+    @ApiModelProperty("入库标志，true-库内，false-库外")
     private Boolean rkkFlag;
 }
 

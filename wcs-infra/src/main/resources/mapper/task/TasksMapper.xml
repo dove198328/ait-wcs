@@ -2,7 +2,7 @@
 <!DOCTYPE mapper
         PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN"
         "http://mybatis.org/dtd/mybatis-3-mapper.dtd">
-<mapper namespace="cn.aitplus.wcs.infra.persistence.task.TaskMapper">
+<mapper namespace="cn.aitplus.wcs.infra.persistence.task.TasksMapper">
 
     <resultMap id="TaskResultMap" type="cn.aitplus.wcs.core.domain.model.Task">
         <result property="id" column="id" jdbcType="INTEGER"/>
@@ -124,7 +124,9 @@
             <if test="ew.depth != null and ew.depth != ''">
                 and depth = #{ew.depth}
             </if>
-            <if test="ew.frontEmpty != null"></if>
+            <if test="ew.frontEmpty != null">
+                and front_empty = #{ew.frontEmpty}
+            </if>
             <if test="ew.twinsNo != null and ew.twinsNo != ''">
                 and twins_no = #{ew.twinsNo}
             </if>

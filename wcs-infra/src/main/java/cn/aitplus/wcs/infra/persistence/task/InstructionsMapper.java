@@ -9,9 +9,9 @@ import java.util.List;
  */
 public interface InstructionsMapper{
 
-//   IPage<Instruction> queryByPage(@Param("page") IPage<Instruction> page, @Param("ew") Instruction instructions);
-//
-//   List<Instruction> queryList(@Param("ew") Instruction instructions);
+   IPage<Instruction> queryByPage(@Param("page") IPage<Instruction> page, @Param("ew") Instruction instructions);
+
+   List<Instruction> queryList(@Param("ew") Instruction instructions);
 
     void insertbatch(List<Instruction> collect);
 

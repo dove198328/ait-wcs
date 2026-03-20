@@ -9,7 +9,7 @@ import java.util.Date;
  * 负责管理和跟踪子任务的执行过程
  */
 @Data
-public class SubTasks {
+public class SubTask {
     // 主键
     private Long id;
     // 任务ID

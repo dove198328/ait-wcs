@@ -4,7 +4,7 @@
         "http://mybatis.org/dtd/mybatis-3-mapper.dtd">
 <mapper namespace="cn.aitplus.wcs.infra.persistence.task.SubTasksMapper">
 
-    <resultMap id="SubtasksMap" type="cn.aitplus.wcs.core.domain.model.SubTasks">
+    <resultMap id="SubtasksMap" type="cn.aitplus.wcs.core.domain.model.SubTask">
         <result property="id" column="id" jdbcType="INTEGER"/>
         <result property="taskId" column="task_id" jdbcType="INTEGER"/>
         <result property="subtaskDefId" column="subtask_def_id" jdbcType="VARCHAR"/>
@@ -192,7 +192,7 @@
     </select>
 
     <!-- 插入子任务,如果已存在则直接返回该记录 (task_id + subtask_def_id) -->
-    <select id="upsertSubtask" parameterType="cn.aitplus.wcs.core.domain.model.SubTasks" resultType="cn.aitplus.wcs.core.domain.model.SubTasks">
+    <select id="upsertSubtask" parameterType="cn.aitplus.wcs.core.domain.model.SubTask" resultType="cn.aitplus.wcs.core.domain.model.SubTask">
         <choose>
             <when test="_databaseId == 'sqlserver'">
                 -- 两段式 upsert，使用键范围锁，避免 MERGE 锁竞争
@@ -241,13 +241,13 @@
         </choose>
     </select>
 
-    <select id="queryById" resultType="cn.aitplus.wcs.core.domain.model.SubTasks">
+    <select id="queryById" resultType="cn.aitplus.wcs.core.domain.model.SubTask">
         SELECT
         <include refid="base_field"/>
         FROM subtasks WHERE id = #{id}
     </select>
 
-    <select id="queryNoCompletedByTaskId" parameterType="java.lang.Long" resultType="cn.aitplus.wcs.core.domain.model.SubTasks">
+    <select id="queryNoCompletedByTaskId" parameterType="java.lang.Long" resultType="cn.aitplus.wcs.core.domain.model.SubTask">
         <choose>
             <when test="_databaseId == 'sqlserver'">
                 select TOP 1

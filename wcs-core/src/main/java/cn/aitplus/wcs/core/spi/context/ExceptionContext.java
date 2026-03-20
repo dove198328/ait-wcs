@@ -1,6 +1,5 @@
 package cn.aitplus.wcs.core.spi.context;
 
-import cn.aitplus.wcs.core.domain.model.Step;
 import lombok.Data;
 import lombok.EqualsAndHashCode;
 
