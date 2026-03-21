@@ -1,0 +1,31 @@
+package cn.aitplus.wcs.infra.persistence.task;
+
+import cn.aitplus.wcs.core.domain.model.WorkflowDefinition;
+import com.baomidou.mybatisplus.core.mapper.BaseMapper;
+import com.baomidou.mybatisplus.core.metadata.IPage;
+import org.apache.ibatis.annotations.Mapper;
+import org.apache.ibatis.annotations.Param;
+
+import java.util.List;
+
+
+/**
+ * (WorkflowDefinitions)表数据库访问层
+ *
+ * @author makejava
+ * @since 2025-05-14 16:00:53
+ */
+@Mapper
+public interface WorkflowDefinitionsMapper extends BaseMapper<WorkflowDefinition>{
+
+   IPage<WorkflowDefinition> queryByPage(@Param("page") IPage<WorkflowDefinition> page, @Param("ew") WorkflowDefinition workflowDefinitions);
+
+   List<WorkflowDefinition> queryList(@Param("ew") WorkflowDefinition workflowDefinitions);
+
+   WorkflowDefinition findByBizType(String bizType);
+
+    WorkflowDefinition queryByworkFlowId(String workFlowId);
+
+    String getFirstSubDefString(String workflowId);
+}
+

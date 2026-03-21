@@ -2,6 +2,7 @@ package cn.aitplus.wcs.infra.persistence.task;
 
 import cn.aitplus.wcs.core.domain.model.Task;
 import cn.hutool.json.JSONObject;
+import com.baomidou.mybatisplus.core.mapper.BaseMapper;
 import com.baomidou.mybatisplus.core.metadata.IPage;
 import org.apache.ibatis.annotations.Param;
 
@@ -12,7 +13,7 @@ import java.util.Set;
 /**
  * (Tasks)表数据库访问层
  */
-public interface TasksMapper {
+public interface TasksMapper extends BaseMapper<Task> {
 
     IPage<Task> queryByPage(@Param("wareHouseId") Long wareHouseId, @Param("page") IPage<Task> page, @Param("ew") Task tasks);
 
