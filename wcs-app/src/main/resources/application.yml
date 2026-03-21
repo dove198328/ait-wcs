@@ -6,6 +6,17 @@ spring:
       matching-strategy: ant_path_matcher
   profiles:
     active: postgresql
+
+# 开发环境配置
+server:
+  # 服务器的HTTP端口
+  port: 9021
+  # 优雅停机
+  shutdown: graceful
+  servlet:
+    # 应用的访问路径
+    context-path: /
+
 # 是否开启swagger注解
 swagger:
   enabled: true
