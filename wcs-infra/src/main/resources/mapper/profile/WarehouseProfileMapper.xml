@@ -1,0 +1,86 @@
+<?xml version="1.0" encoding="UTF-8" ?>
+<!DOCTYPE mapper
+        PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN"
+        "http://mybatis.org/dtd/mybatis-3-mapper.dtd">
+<mapper namespace="cn.aitplus.wcs.infra.persistence.profile.WarehouseProfileMapper">
+
+    <resultMap id="ProfileResultMap" type="cn.aitplus.wcs.core.domain.model.WarehouseProfile">
+        <result property="id" column="id"/>
+        <result property="warehouseId" column="warehouse_id"/>
+        <result property="warehouseType" column="warehouse_type"/>
+        <result property="enabledPluginsJson" column="enabled_plugins_json"/>
+        <result property="paramsJson" column="params_json"/>
+        <result property="version" column="version"/>
+        <result property="active" column="active"/>
+        <result property="createdAt" column="created_at"/>
+        <result property="updatedAt" column="updated_at"/>
+    </resultMap>
+
+    <sql id="base_field">
+        id, warehouse_id, warehouse_type, enabled_plugins_json, params_json, version, active, created_at, updated_at
+    </sql>
+
+    <select id="selectByWarehouseId" resultMap="ProfileResultMap">
+        <choose>
+            <when test="_databaseId == 'sqlserver'">
+                select <include refid="base_field"/>
+                from wcs_warehouse_profile WITH (NOLOCK)
+                where warehouse_id = #{warehouseId}
+            </when>
+            <when test="_databaseId == 'postgresql'">
+                select <include refid="base_field"/>
+                from wcs_warehouse_profile
+                where warehouse_id = #{warehouseId}
+            </when>
+        </choose>
+    </select>
+
+    <select id="selectAll" resultMap="ProfileResultMap">
+        <choose>
+            <when test="_databaseId == 'sqlserver'">
+                select <include refid="base_field"/>
+                from wcs_warehouse_profile WITH (NOLOCK)
+                order by warehouse_id
+            </when>
+            <when test="_databaseId == 'postgresql'">
+                select <include refid="base_field"/>
+                from wcs_warehouse_profile
+                order by warehouse_id
+            </when>
+        </choose>
+    </select>
+
+    <insert id="insert" parameterType="cn.aitplus.wcs.core.domain.model.WarehouseProfile" useGeneratedKeys="true" keyProperty="id">
+        <choose>
+            <when test="_databaseId == 'sqlserver'">
+                insert into wcs_warehouse_profile (warehouse_id, warehouse_type, enabled_plugins_json, params_json, version, active, created_at, updated_at)
+                values (#{warehouseId}, #{warehouseType}, #{enabledPluginsJson}, #{paramsJson}, #{version}, #{active}, GETDATE(), GETDATE())
+            </when>
+            <when test="_databaseId == 'postgresql'">
+                insert into wcs_warehouse_profile (warehouse_id, warehouse_type, enabled_plugins_json, params_json, version, active, created_at, updated_at)
+                values (#{warehouseId}, #{warehouseType}, #{enabledPluginsJson}, #{paramsJson}, #{version}, #{active}, now(), now())
+            </when>
+        </choose>
+    </insert>
+
+    <update id="update" parameterType="cn.aitplus.wcs.core.domain.model.WarehouseProfile">
+        update wcs_warehouse_profile
+        <set>
+            <if test="warehouseType != null">warehouse_type = #{warehouseType},</if>
+            <if test="enabledPluginsJson != null">enabled_plugins_json = #{enabledPluginsJson},</if>
+            <if test="paramsJson != null">params_json = #{paramsJson},</if>
+            <if test="version != null">version = #{version},</if>
+            <if test="active != null">active = #{active},</if>
+            <choose>
+                <when test="_databaseId == 'sqlserver'">updated_at = GETDATE()</when>
+                <when test="_databaseId == 'postgresql'">updated_at = now()</when>
+            </choose>
+        </set>
+        where warehouse_id = #{warehouseId}
+    </update>
+
+    <delete id="deleteByWarehouseId">
+        delete from wcs_warehouse_profile where warehouse_id = #{warehouseId}
+    </delete>
+
+</mapper>

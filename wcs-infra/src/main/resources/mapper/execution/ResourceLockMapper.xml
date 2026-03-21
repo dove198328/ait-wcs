@@ -1,0 +1,174 @@
+<?xml version="1.0" encoding="UTF-8" ?>
+<!DOCTYPE mapper
+        PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN"
+        "http://mybatis.org/dtd/mybatis-3-mapper.dtd">
+<mapper namespace="cn.aitplus.wcs.infra.persistence.execution.ResourceLockMapper">
+
+    <resultMap id="ResourceLockResultMap" type="cn.aitplus.wcs.core.domain.model.ResourceLock">
+        <result property="id" column="id"/>
+        <result property="warehouseId" column="warehouse_id"/>
+        <result property="lockKey" column="lock_key"/>
+        <result property="ownerType" column="owner_type"/>
+        <result property="ownerId" column="owner_id"/>
+        <result property="status" column="status"/>
+        <result property="expireAt" column="expire_at"/>
+        <result property="createdAt" column="created_at"/>
+        <result property="updatedAt" column="updated_at"/>
+    </resultMap>
+
+    <sql id="base_field">
+        id, warehouse_id, lock_key, owner_type, owner_id, status, expire_at, created_at, updated_at
+    </sql>
+
+    <sql id="selectResourceLockWhere">
+        <where>
+            and warehouse_id = #{wareHouseId}
+            <if test="ew.id != null">
+                and id = #{ew.id}
+            </if>
+            <if test="ew.lockKey != null and ew.lockKey != ''">
+                and lock_key = #{ew.lockKey}
+            </if>
+            <if test="ew.ownerType != null and ew.ownerType != ''">
+                and owner_type = #{ew.ownerType}
+            </if>
+            <if test="ew.ownerId != null and ew.ownerId != ''">
+                and owner_id = #{ew.ownerId}
+            </if>
+            <if test="ew.status != null and ew.status != ''">
+                and status = #{ew.status}
+            </if>
+        </where>
+    </sql>
+
+    <sql id="queryResourceLockSql">
+        <choose>
+            <when test="_databaseId == 'sqlserver'">
+                select <include refid="base_field"/> from wcs_resource_lock WITH (NOLOCK)
+            </when>
+            <otherwise>
+                select <include refid="base_field"/> from wcs_resource_lock
+            </otherwise>
+        </choose>
+        <include refid="selectResourceLockWhere"/>
+        order by id desc
+    </sql>
+
+    <select id="queryByPage" resultMap="ResourceLockResultMap">
+        <include refid="queryResourceLockSql"/>
+    </select>
+
+    <select id="queryList" resultMap="ResourceLockResultMap">
+        <include refid="queryResourceLockSql"/>
+    </select>
+
+    <select id="queryById" resultMap="ResourceLockResultMap">
+        <choose>
+            <when test="_databaseId == 'sqlserver'">
+                select <include refid="base_field"/> from wcs_resource_lock WITH (NOLOCK)
+                where warehouse_id = #{wareHouseId} and id = #{id}
+            </when>
+            <otherwise>
+                select <include refid="base_field"/> from wcs_resource_lock
+                where warehouse_id = #{wareHouseId} and id = #{id}
+            </otherwise>
+        </choose>
+    </select>
+
+    <select id="queryByLockKey" resultMap="ResourceLockResultMap">
+        <choose>
+            <when test="_databaseId == 'sqlserver'">
+                select <include refid="base_field"/> from wcs_resource_lock WITH (NOLOCK)
+                where warehouse_id = #{wareHouseId} and lock_key = #{lockKey}
+            </when>
+            <otherwise>
+                select <include refid="base_field"/> from wcs_resource_lock
+                where warehouse_id = #{wareHouseId} and lock_key = #{lockKey}
+            </otherwise>
+        </choose>
+    </select>
+
+    <update id="updateForAcquire">
+        update wcs_resource_lock
+        <set>
+            owner_type = #{ownerType},
+            owner_id = #{ownerId},
+            status = #{status},
+            expire_at = #{expireAt},
+            <choose>
+                <when test="_databaseId == 'sqlserver'">updated_at = GETDATE()</when>
+                <otherwise>updated_at = now()</otherwise>
+            </choose>
+        </set>
+        where warehouse_id = #{wareHouseId}
+          and lock_key = #{lockKey}
+          and (status != 'HELD' or expire_at is null or expire_at &lt;= #{now})
+    </update>
+
+    <insert id="insertIfAbsent" parameterType="cn.aitplus.wcs.core.domain.model.ResourceLock">
+        <choose>
+            <when test="_databaseId == 'sqlserver'">
+                insert into wcs_resource_lock (warehouse_id, lock_key, owner_type, owner_id, status, expire_at, created_at, updated_at)
+                select #{warehouseId}, #{lockKey}, #{ownerType}, #{ownerId}, #{status}, #{expireAt}, GETDATE(), GETDATE()
+                where not exists (
+                    select 1 from wcs_resource_lock where warehouse_id = #{warehouseId} and lock_key = #{lockKey}
+                )
+            </when>
+            <otherwise>
+                insert into wcs_resource_lock (warehouse_id, lock_key, owner_type, owner_id, status, expire_at, created_at, updated_at)
+                select #{warehouseId}, #{lockKey}, #{ownerType}, #{ownerId}, #{status}, #{expireAt}, now(), now()
+                where not exists (
+                    select 1 from wcs_resource_lock where warehouse_id = #{warehouseId} and lock_key = #{lockKey}
+                )
+            </otherwise>
+        </choose>
+    </insert>
+
+    <update id="renewByOwner">
+        update wcs_resource_lock
+        <set>
+            status = 'HELD',
+            expire_at = #{expireAt},
+            <choose>
+                <when test="_databaseId == 'sqlserver'">updated_at = GETDATE()</when>
+                <otherwise>updated_at = now()</otherwise>
+            </choose>
+        </set>
+        where warehouse_id = #{wareHouseId}
+          and lock_key = #{lockKey}
+          and owner_type = #{ownerType}
+          and owner_id = #{ownerId}
+          and status = 'HELD'
+          and (expire_at is null or expire_at &gt; #{now})
+    </update>
+
+    <update id="releaseByOwner">
+        update wcs_resource_lock
+        <set>
+            status = 'RELEASED',
+            <choose>
+                <when test="_databaseId == 'sqlserver'">updated_at = GETDATE()</when>
+                <otherwise>updated_at = now()</otherwise>
+            </choose>
+        </set>
+        where warehouse_id = #{wareHouseId}
+          and lock_key = #{lockKey}
+          and owner_type = #{ownerType}
+          and owner_id = #{ownerId}
+          and status = 'HELD'
+    </update>
+
+    <update id="forceRelease">
+        update wcs_resource_lock
+        <set>
+            status = 'RELEASED',
+            <choose>
+                <when test="_databaseId == 'sqlserver'">updated_at = GETDATE()</when>
+                <otherwise>updated_at = now()</otherwise>
+            </choose>
+        </set>
+        where warehouse_id = #{wareHouseId}
+          and lock_key = #{lockKey}
+    </update>
+
+</mapper>

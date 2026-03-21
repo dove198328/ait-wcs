@@ -36,6 +36,8 @@
         <opcua.version>0.6.16</opcua.version>
         <redis.version>3.17.2</redis.version>
         <opengauss.version>6.0.0</opengauss.version>
+        <fastjson2.version>2.0.47</fastjson2.version>
+        <jetcache.version>2.7.7</jetcache.version>
 
     </properties>
 
@@ -205,6 +207,25 @@
                 <groupId>org.opengauss</groupId>
                 <artifactId>opengauss-jdbc</artifactId>
                 <version>${opengauss.version}</version>
+            </dependency>
+
+            <!-- fastjson2 -->
+            <dependency>
+                <groupId>com.alibaba.fastjson2</groupId>
+                <artifactId>fastjson2</artifactId>
+                <version>${fastjson2.version}</version>
+            </dependency>
+
+            <!-- JetCache -->
+            <dependency>
+                <groupId>com.alicp.jetcache</groupId>
+                <artifactId>jetcache-starter-redis-lettuce</artifactId>
+                <version>${jetcache.version}</version>
+            </dependency>
+            <dependency>
+                <groupId>com.alicp.jetcache</groupId>
+                <artifactId>jetcache-anno</artifactId>
+                <version>${jetcache.version}</version>
             </dependency>
 
             <dependency>

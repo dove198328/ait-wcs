@@ -1,0 +1,131 @@
+<?xml version="1.0" encoding="UTF-8" ?>
+<!DOCTYPE mapper
+        PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN"
+        "http://mybatis.org/dtd/mybatis-3-mapper.dtd">
+<mapper namespace="cn.aitplus.wcs.infra.persistence.profile.ProfileChainNodeMapper">
+
+    <resultMap id="ChainNodeResultMap" type="cn.aitplus.wcs.core.domain.model.ProfileChainNode">
+        <result property="id" column="id"/>
+        <result property="warehouseId" column="warehouse_id"/>
+        <result property="chainName" column="chain_name"/>
+        <result property="nodeOrder" column="node_order"/>
+        <result property="beanName" column="bean_name"/>
+        <result property="enabled" column="enabled"/>
+        <result property="createdAt" column="created_at"/>
+        <result property="updatedAt" column="updated_at"/>
+    </resultMap>
+
+    <sql id="base_field">
+        id, warehouse_id, chain_name, node_order, bean_name, enabled, created_at, updated_at
+    </sql>
+
+    <select id="selectByChain" resultMap="ChainNodeResultMap">
+        <choose>
+            <when test="_databaseId == 'sqlserver'">
+                select <include refid="base_field"/>
+                from wcs_profile_chain_node WITH (NOLOCK)
+                where warehouse_id = #{warehouseId}
+                  and chain_name = #{chainName}
+                  and enabled = 1
+                order by node_order
+            </when>
+            <when test="_databaseId == 'postgresql'">
+                select <include refid="base_field"/>
+                from wcs_profile_chain_node
+                where warehouse_id = #{warehouseId}
+                  and chain_name = #{chainName}
+                  and enabled = true
+                order by node_order
+            </when>
+        </choose>
+    </select>
+
+    <select id="selectByWarehouseId" resultMap="ChainNodeResultMap">
+        <choose>
+            <when test="_databaseId == 'sqlserver'">
+                select <include refid="base_field"/>
+                from wcs_profile_chain_node WITH (NOLOCK)
+                where warehouse_id = #{warehouseId}
+                order by chain_name, node_order
+            </when>
+            <when test="_databaseId == 'postgresql'">
+                select <include refid="base_field"/>
+                from wcs_profile_chain_node
+                where warehouse_id = #{warehouseId}
+                order by chain_name, node_order
+            </when>
+        </choose>
+    </select>
+
+    <select id="selectChainNamesByWarehouseId" resultType="java.lang.String">
+        <choose>
+            <when test="_databaseId == 'sqlserver'">
+                select distinct chain_name
+                from wcs_profile_chain_node WITH (NOLOCK)
+                where warehouse_id = #{warehouseId}
+            </when>
+            <when test="_databaseId == 'postgresql'">
+                select distinct chain_name
+                from wcs_profile_chain_node
+                where warehouse_id = #{warehouseId}
+            </when>
+        </choose>
+    </select>
+
+    <insert id="insert" parameterType="cn.aitplus.wcs.core.domain.model.ProfileChainNode" useGeneratedKeys="true" keyProperty="id">
+        <choose>
+            <when test="_databaseId == 'sqlserver'">
+                insert into wcs_profile_chain_node (warehouse_id, chain_name, node_order, bean_name, enabled, created_at, updated_at)
+                values (#{warehouseId}, #{chainName}, #{nodeOrder}, #{beanName}, #{enabled}, GETDATE(), GETDATE())
+            </when>
+            <when test="_databaseId == 'postgresql'">
+                insert into wcs_profile_chain_node (warehouse_id, chain_name, node_order, bean_name, enabled, created_at, updated_at)
+                values (#{warehouseId}, #{chainName}, #{nodeOrder}, #{beanName}, #{enabled}, now(), now())
+            </when>
+        </choose>
+    </insert>
+
+    <insert id="batchInsert" parameterType="java.util.List">
+        <choose>
+            <when test="_databaseId == 'sqlserver'">
+                insert into wcs_profile_chain_node (warehouse_id, chain_name, node_order, bean_name, enabled, created_at, updated_at)
+                <foreach collection="list" item="item" separator=" UNION ALL ">
+                    SELECT #{item.warehouseId}, #{item.chainName}, #{item.nodeOrder}, #{item.beanName}, #{item.enabled}, GETDATE(), GETDATE()
+                </foreach>
+            </when>
+            <when test="_databaseId == 'postgresql'">
+                insert into wcs_profile_chain_node (warehouse_id, chain_name, node_order, bean_name, enabled, created_at, updated_at)
+                values
+                <foreach collection="list" item="item" separator=",">
+                    (#{item.warehouseId}, #{item.chainName}, #{item.nodeOrder}, #{item.beanName}, #{item.enabled}, now(), now())
+                </foreach>
+            </when>
+        </choose>
+    </insert>
+
+    <update id="update" parameterType="cn.aitplus.wcs.core.domain.model.ProfileChainNode">
+        update wcs_profile_chain_node
+        <set>
+            <if test="beanName != null">bean_name = #{beanName},</if>
+            <if test="nodeOrder != null">node_order = #{nodeOrder},</if>
+            <if test="enabled != null">enabled = #{enabled},</if>
+            <choose>
+                <when test="_databaseId == 'sqlserver'">updated_at = GETDATE()</when>
+                <when test="_databaseId == 'postgresql'">updated_at = now()</when>
+            </choose>
+        </set>
+        where id = #{id}
+    </update>
+
+    <delete id="deleteByWarehouseIdAndChain">
+        delete from wcs_profile_chain_node
+        where warehouse_id = #{warehouseId}
+          and chain_name = #{chainName}
+    </delete>
+
+    <delete id="deleteByWarehouseId">
+        delete from wcs_profile_chain_node
+        where warehouse_id = #{warehouseId}
+    </delete>
+
+</mapper>

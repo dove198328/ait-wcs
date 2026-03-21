@@ -1,0 +1,188 @@
+<?xml version="1.0" encoding="UTF-8" ?>
+<!DOCTYPE mapper
+        PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN"
+        "http://mybatis.org/dtd/mybatis-3-mapper.dtd">
+<mapper namespace="cn.aitplus.wcs.infra.persistence.execution.CommandExecutionMapper">
+
+    <resultMap id="CommandExecutionResultMap" type="cn.aitplus.wcs.core.domain.model.CommandExecution">
+        <result property="id" column="id"/>
+        <result property="warehouseId" column="warehouse_id"/>
+        <result property="taskId" column="task_id"/>
+        <result property="subtaskId" column="subtask_id"/>
+        <result property="instructionId" column="instruction_id"/>
+        <result property="domain" column="domain"/>
+        <result property="deviceId" column="device_id"/>
+        <result property="commandType" column="command_type"/>
+        <result property="idempotencyKey" column="idempotency_key"/>
+        <result property="status" column="status"/>
+        <result property="requestJson" column="request_json"/>
+        <result property="responseJson" column="response_json"/>
+        <result property="errorCode" column="error_code"/>
+        <result property="errorMessage" column="error_message"/>
+        <result property="traceId" column="trace_id"/>
+        <result property="correlationId" column="correlation_id"/>
+        <result property="startedAt" column="started_at"/>
+        <result property="endedAt" column="ended_at"/>
+        <result property="createdAt" column="created_at"/>
+        <result property="updatedAt" column="updated_at"/>
+    </resultMap>
+
+    <sql id="base_field">
+        id, warehouse_id, task_id, subtask_id, instruction_id, domain, device_id, command_type, idempotency_key, status,
+        request_json, response_json, error_code, error_message, trace_id, correlation_id, started_at, ended_at, created_at, updated_at
+    </sql>
+
+    <sql id="selectCommandExecutionWhere">
+        <where>
+            and warehouse_id = #{wareHouseId}
+            <if test="ew.id != null">
+                and id = #{ew.id}
+            </if>
+            <if test="ew.taskId != null">
+                and task_id = #{ew.taskId}
+            </if>
+            <if test="ew.subtaskId != null">
+                and subtask_id = #{ew.subtaskId}
+            </if>
+            <if test="ew.instructionId != null">
+                and instruction_id = #{ew.instructionId}
+            </if>
+            <if test="ew.domain != null and ew.domain != ''">
+                and domain = #{ew.domain}
+            </if>
+            <if test="ew.deviceId != null and ew.deviceId != ''">
+                and device_id = #{ew.deviceId}
+            </if>
+            <if test="ew.commandType != null and ew.commandType != ''">
+                and command_type = #{ew.commandType}
+            </if>
+            <if test="ew.idempotencyKey != null and ew.idempotencyKey != ''">
+                and idempotency_key = #{ew.idempotencyKey}
+            </if>
+            <if test="ew.status != null and ew.status != ''">
+                and status = #{ew.status}
+            </if>
+            <if test="ew.traceId != null and ew.traceId != ''">
+                and trace_id = #{ew.traceId}
+            </if>
+            <if test="ew.correlationId != null and ew.correlationId != ''">
+                and correlation_id = #{ew.correlationId}
+            </if>
+        </where>
+    </sql>
+
+    <sql id="queryCommandExecutionSql">
+        <choose>
+            <when test="_databaseId == 'sqlserver'">
+                select <include refid="base_field"/> from wcs_command_execution WITH (NOLOCK)
+            </when>
+            <otherwise>
+                select <include refid="base_field"/> from wcs_command_execution
+            </otherwise>
+        </choose>
+        <include refid="selectCommandExecutionWhere"/>
+        order by id desc
+    </sql>
+
+    <select id="queryByPage" resultMap="CommandExecutionResultMap">
+        <include refid="queryCommandExecutionSql"/>
+    </select>
+
+    <select id="queryList" resultMap="CommandExecutionResultMap">
+        <include refid="queryCommandExecutionSql"/>
+    </select>
+
+    <select id="queryById" resultMap="CommandExecutionResultMap">
+        <choose>
+            <when test="_databaseId == 'sqlserver'">
+                select <include refid="base_field"/> from wcs_command_execution WITH (NOLOCK)
+                where warehouse_id = #{wareHouseId} and id = #{id}
+            </when>
+            <otherwise>
+                select <include refid="base_field"/> from wcs_command_execution
+                where warehouse_id = #{wareHouseId} and id = #{id}
+            </otherwise>
+        </choose>
+    </select>
+
+    <select id="queryByIdempotencyKey" resultMap="CommandExecutionResultMap">
+        <choose>
+            <when test="_databaseId == 'sqlserver'">
+                select <include refid="base_field"/> from wcs_command_execution WITH (NOLOCK)
+                where warehouse_id = #{wareHouseId} and idempotency_key = #{idempotencyKey}
+            </when>
+            <otherwise>
+                select <include refid="base_field"/> from wcs_command_execution
+                where warehouse_id = #{wareHouseId} and idempotency_key = #{idempotencyKey}
+            </otherwise>
+        </choose>
+    </select>
+
+    <insert id="insert" parameterType="cn.aitplus.wcs.core.domain.model.CommandExecution" useGeneratedKeys="true" keyProperty="id">
+        <choose>
+            <when test="_databaseId == 'sqlserver'">
+                insert into wcs_command_execution (
+                    warehouse_id, task_id, subtask_id, instruction_id, domain, device_id, command_type, idempotency_key, status,
+                    request_json, response_json, error_code, error_message, trace_id, correlation_id, started_at, ended_at, created_at, updated_at
+                )
+                values (
+                    #{warehouseId}, #{taskId}, #{subtaskId}, #{instructionId}, #{domain}, #{deviceId}, #{commandType}, #{idempotencyKey}, #{status},
+                    #{requestJson}, #{responseJson}, #{errorCode}, #{errorMessage}, #{traceId}, #{correlationId}, #{startedAt}, #{endedAt}, GETDATE(), GETDATE()
+                )
+            </when>
+            <otherwise>
+                insert into wcs_command_execution (
+                    warehouse_id, task_id, subtask_id, instruction_id, domain, device_id, command_type, idempotency_key, status,
+                    request_json, response_json, error_code, error_message, trace_id, correlation_id, started_at, ended_at, created_at, updated_at
+                )
+                values (
+                    #{warehouseId}, #{taskId}, #{subtaskId}, #{instructionId}, #{domain}, #{deviceId}, #{commandType}, #{idempotencyKey}, #{status},
+                    #{requestJson}, #{responseJson}, #{errorCode}, #{errorMessage}, #{traceId}, #{correlationId}, #{startedAt}, #{endedAt}, now(), now()
+                )
+            </otherwise>
+        </choose>
+    </insert>
+
+    <update id="updateById" parameterType="cn.aitplus.wcs.core.domain.model.CommandExecution">
+        update wcs_command_execution
+        <set>
+            <if test="taskId != null">task_id = #{taskId},</if>
+            <if test="subtaskId != null">subtask_id = #{subtaskId},</if>
+            <if test="instructionId != null">instruction_id = #{instructionId},</if>
+            <if test="domain != null">domain = #{domain},</if>
+            <if test="deviceId != null">device_id = #{deviceId},</if>
+            <if test="commandType != null">command_type = #{commandType},</if>
+            <if test="status != null">status = #{status},</if>
+            <if test="requestJson != null">request_json = #{requestJson},</if>
+            <if test="responseJson != null">response_json = #{responseJson},</if>
+            <if test="errorCode != null">error_code = #{errorCode},</if>
+            <if test="errorMessage != null">error_message = #{errorMessage},</if>
+            <if test="traceId != null">trace_id = #{traceId},</if>
+            <if test="correlationId != null">correlation_id = #{correlationId},</if>
+            <if test="startedAt != null">started_at = #{startedAt},</if>
+            <if test="endedAt != null">ended_at = #{endedAt},</if>
+            <choose>
+                <when test="_databaseId == 'sqlserver'">updated_at = GETDATE()</when>
+                <otherwise>updated_at = now()</otherwise>
+            </choose>
+        </set>
+        where id = #{id} and warehouse_id = #{warehouseId}
+    </update>
+
+    <update id="updateStatusById">
+        update wcs_command_execution
+        <set>
+            status = #{status},
+            <if test="responseJson != null">response_json = #{responseJson},</if>
+            <if test="errorCode != null">error_code = #{errorCode},</if>
+            <if test="errorMessage != null">error_message = #{errorMessage},</if>
+            <if test="endedAt != null">ended_at = #{endedAt},</if>
+            <choose>
+                <when test="_databaseId == 'sqlserver'">updated_at = GETDATE()</when>
+                <otherwise>updated_at = now()</otherwise>
+            </choose>
+        </set>
+        where warehouse_id = #{wareHouseId} and id = #{id}
+    </update>
+
+</mapper>
