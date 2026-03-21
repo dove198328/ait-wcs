@@ -1,6 +1,7 @@
 package cn.aitplus.wcs.infra.persistence.task;
 
 import cn.aitplus.wcs.core.domain.model.SubTask;
+import com.baomidou.mybatisplus.core.mapper.BaseMapper;
 import com.baomidou.mybatisplus.core.metadata.IPage;
 import org.apache.ibatis.annotations.Param;
 
@@ -10,7 +11,7 @@ import java.util.List;
 /**
  * (SubTasks)表数据库访问层
  */
-public interface SubTasksMapper {
+public interface SubTasksMapper extends BaseMapper<SubTask> {
 
     IPage<SubTask> queryByPage(@Param("wareHouseId") Long wareHouseId, @Param("page") IPage<SubTask> page, @Param("ew") SubTask subtasks);
 

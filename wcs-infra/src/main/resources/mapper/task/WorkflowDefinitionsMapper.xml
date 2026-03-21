@@ -1,0 +1,66 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE mapper PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN" "http://mybatis.org/dtd/mybatis-3-mapper.dtd">
+<mapper namespace="cn.aitplus.wcs.infra.persistence.task.WorkflowDefinitionsMapper">
+
+    <resultMap id="WorkflowDefinitionsMap" type="cn.aitplus.wcs.core.domain.model.WorkflowDefinition">
+        <result property="id" column="id" jdbcType="INTEGER"/>
+        <result property="priority" column="priority" jdbcType="INTEGER"/>
+        <result property="warehouseId" column="warehouse_id" jdbcType="INTEGER"/>
+        <result property="bizType" column="biz_type" jdbcType="VARCHAR"/>
+        <result property="workflowId" column="workflow_id" jdbcType="VARCHAR"/>
+        <result property="config" column="config" jdbcType="VARCHAR"/>
+        <result property="name" column="name" jdbcType="VARCHAR"/>
+        <result property="firstSubDef" column="first_sub_def" jdbcType="VARCHAR"/>
+        <result property="subtaskDefinitions" column="process_data_with_device" typeHandler="com.baomidou.mybatisplus.extension.handlers.JacksonTypeHandler"/>
+        <result property="processData" column="process_data" jdbcType="VARCHAR"/>
+        <result property="createdAt" column="created_at" jdbcType="TIMESTAMP"/>
+        <result property="updatedAt" column="updated_at" jdbcType="TIMESTAMP"/>
+        <result property="isAutoStart" column="is_auto_start" jdbcType="INTEGER"/>
+        <result property="status" column="status" jdbcType="INTEGER"/>
+        <result property="processDefId" column="process_def_id" jdbcType="VARCHAR"/>
+        <result property="deployId" column="deploy_id" jdbcType="VARCHAR"/>
+    </resultMap>
+
+    <sql id="selectWorkflowDefinitionsorgan">
+        select id, biz_type, workflow_id, config, created_at,warehouse_id,is_auto_start,first_sub_def,status,
+               updated_at,name,priority,process_data ,process_def_id,deploy_id from workflow_definitions
+        <where>
+            <if test="ew.id != null">
+                and id = #{ew.id}
+            </if>
+            <if test="ew.bizType != null and ew.bizType != ''">
+                and biz_type = #{ew.bizType}
+            </if>
+            <if test="ew.workflowId != null and ew.workflowId != ''">
+                and workflow_id = #{ew.workflowId}
+            </if>
+            <if test="ew.name != null and ew.name != ''">
+                and name like concat('%',  #{ew.name}, '%')
+            </if>
+            <if test="ew.createdAt != null and ew.createdAt != ''">
+                and created_at = #{ew.createdAt}
+            </if>
+            <if test="ew.updatedAt != null and ew.updatedAt != ''">
+                and updated_at = #{ew.updatedAt}
+            </if>
+        </where>
+    </sql>
+
+    <!--查询指定行数据-->
+    <select id="queryByPage" resultMap="WorkflowDefinitionsMap">
+        <include refid="selectWorkflowDefinitionsorgan"/>
+    </select>
+
+    <select id="queryList" resultMap="WorkflowDefinitionsMap">
+        <include refid="selectWorkflowDefinitionsorgan"/>
+    </select>
+    <select id="findByBizType" resultMap="WorkflowDefinitionsMap">
+        select * from workflow_definitions where biz_type = #{bizType}
+    </select>
+    <select id="queryByworkFlowId" resultMap="WorkflowDefinitionsMap">
+        select * from workflow_definitions where workflow_id = #{workFlowId}
+    </select>
+    <select id="getFirstSubDefString" resultType="java.lang.String">
+        select first_sub_def from workflow_definitions where workflow_id = #{workFlowId}
+    </select>
+</mapper>
