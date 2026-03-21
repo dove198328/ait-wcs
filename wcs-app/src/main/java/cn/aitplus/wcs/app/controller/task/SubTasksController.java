@@ -1,8 +1,12 @@
 package cn.aitplus.wcs.app.controller.task;
 
 import cn.aitplus.wcs.common.domain.AjaxResult;
+import cn.aitplus.wcs.common.domain.page.PageUtils;
+import cn.aitplus.wcs.common.domain.page.TableDataInfo;
 import cn.aitplus.wcs.core.domain.model.SubTask;
 import cn.aitplus.wcs.infra.service.task.SubTasksService;
+import com.baomidou.mybatisplus.core.metadata.IPage;
+import com.baomidou.mybatisplus.extension.plugins.pagination.Page;
 import io.swagger.annotations.Api;
 import io.swagger.annotations.ApiOperation;
 import io.swagger.annotations.ApiParam;
@@ -29,11 +33,20 @@ public class SubTasksController {
 
     @ApiOperation("查询子任务列表")
     @PostMapping("/search")
-    public AjaxResult<List<SubTask>> queryList(@ApiParam("仓库ID") @PathVariable("wareHouseId") Long wareHouseId,
-                                               @RequestBody(required = false) SubTask subTask) {
+    public AjaxResult<TableDataInfo<SubTask>> queryList(@ApiParam("仓库ID") @PathVariable("wareHouseId") Long wareHouseId,
+                                                        @ApiParam("页码") @RequestParam(value = "pageNum", required = false) Integer pageNum,
+                                                        @ApiParam("每页条数") @RequestParam(value = "pageSize", required = false) Integer pageSize,
+                                                        @RequestBody(required = false) SubTask subTask) {
         SubTask query = subTask == null ? new SubTask() : subTask;
         query.setWarehouseId(wareHouseId);
-        return AjaxResult.success(subTasksService.queryList(wareHouseId, query));
+        if (PageUtils.hasOnlyOnePageParam(pageNum, pageSize)) {
+            return AjaxResult.error("pageNum和pageSize必须同时传入");
+        }
+        if (PageUtils.isPageQuery(pageNum, pageSize)) {
+            IPage<SubTask> page = new Page<>(pageNum, pageSize);
+            return AjaxResult.success(TableDataInfo.build(subTasksService.queryByPage(wareHouseId, page, query)));
+        }
+        return AjaxResult.success(TableDataInfo.build(subTasksService.queryList(wareHouseId, query)));
     }
 
     @ApiOperation("根据ID查询子任务")

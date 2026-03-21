@@ -1,9 +1,13 @@
 package cn.aitplus.wcs.app.controller.task;
 
 import cn.aitplus.wcs.common.domain.AjaxResult;
+import cn.aitplus.wcs.common.domain.page.PageUtils;
+import cn.aitplus.wcs.common.domain.page.TableDataInfo;
 import cn.aitplus.wcs.core.domain.model.Task;
 import cn.aitplus.wcs.infra.service.task.TasksService;
 import cn.hutool.json.JSONObject;
+import com.baomidou.mybatisplus.core.metadata.IPage;
+import com.baomidou.mybatisplus.extension.plugins.pagination.Page;
 import io.swagger.annotations.Api;
 import io.swagger.annotations.ApiOperation;
 import io.swagger.annotations.ApiParam;
@@ -12,6 +16,7 @@ import org.springframework.web.bind.annotation.PathVariable;
 import org.springframework.web.bind.annotation.PostMapping;
 import org.springframework.web.bind.annotation.RequestBody;
 import org.springframework.web.bind.annotation.RequestMapping;
+import org.springframework.web.bind.annotation.RequestParam;
 import org.springframework.web.bind.annotation.RestController;
 
 import java.util.List;
@@ -29,11 +34,20 @@ public class TasksController {
 
     @ApiOperation("查询任务列表")
     @PostMapping("/search")
-    public AjaxResult<List<Task>> queryList(@ApiParam("仓库ID") @PathVariable("wareHouseId") Long wareHouseId,
-                                            @RequestBody(required = false) Task task) {
+    public AjaxResult<TableDataInfo<Task>> queryList(@ApiParam("仓库ID") @PathVariable("wareHouseId") Long wareHouseId,
+                                                     @ApiParam("页码") @RequestParam(value = "pageNum", required = false) Integer pageNum,
+                                                     @ApiParam("每页条数") @RequestParam(value = "pageSize", required = false) Integer pageSize,
+                                                     @RequestBody(required = false) Task task) {
         Task query = task == null ? new Task() : task;
         query.setWarehouseId(wareHouseId);
-        return AjaxResult.success(tasksService.queryList(wareHouseId, query));
+        if (PageUtils.hasOnlyOnePageParam(pageNum, pageSize)) {
+            return AjaxResult.error("pageNum和pageSize必须同时传入");
+        }
+        if (PageUtils.isPageQuery(pageNum, pageSize)) {
+            IPage<Task> page = new Page<>(pageNum, pageSize);
+            return AjaxResult.success(TableDataInfo.build(tasksService.queryByPage(wareHouseId, page, query)));
+        }
+        return AjaxResult.success(TableDataInfo.build(tasksService.queryList(wareHouseId, query)));
     }
 
     @ApiOperation("根据ID查询任务")
