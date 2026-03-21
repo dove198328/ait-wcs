@@ -1,5 +1,6 @@
 package cn.aitplus.wcs.app.controller.task;
 
+import cn.aitplus.wcs.common.domain.AjaxResult;
 import cn.aitplus.wcs.core.domain.model.Instruction;
 import cn.aitplus.wcs.infra.service.task.InstructionsService;
 import io.swagger.annotations.Api;
@@ -26,18 +27,19 @@ public class InstructionsController {
 
     @ApiOperation("查询指令列表")
     @PostMapping("/search")
-    public List<Instruction> queryList(@ApiParam("仓库ID") @PathVariable("wareHouseId") Long wareHouseId,
-                                       @RequestBody(required = false) Instruction instruction) {
-        return instructionsService.queryList(wareHouseId, instruction);
+    public AjaxResult<List<Instruction>> queryList(@ApiParam("仓库ID") @PathVariable("wareHouseId") Long wareHouseId,
+                                                   @RequestBody(required = false) Instruction instruction) {
+        return AjaxResult.success(instructionsService.queryList(wareHouseId, instruction));
     }
 
     @ApiOperation("批量新增指令")
     @PostMapping("/batch")
-    public void insertBatch(@ApiParam("仓库ID") @PathVariable("wareHouseId") Long wareHouseId,
-                            @RequestBody List<Instruction> instructions) {
+    public AjaxResult<Void> insertBatch(@ApiParam("仓库ID") @PathVariable("wareHouseId") Long wareHouseId,
+                                        @RequestBody List<Instruction> instructions) {
         if (wareHouseId == null) {
             throw new IllegalArgumentException("wareHouseId不能为空");
         }
         instructionsService.insertBatch(instructions);
+        return AjaxResult.success();
     }
 }
