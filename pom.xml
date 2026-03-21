@@ -25,7 +25,6 @@
         <mybatis-plus.version>3.5.4</mybatis-plus.version>
         <commons-codec.version>1.15</commons-codec.version>
         <swagger.version>3.0.0</swagger.version>
-        <fastjson.version>2.0.53</fastjson.version>
         <camunda-bpm.version>7.19.0</camunda-bpm.version>
         <jackson.version>2.12.7</jackson.version>
         <plc4x.version>0.13.1</plc4x.version>
@@ -111,7 +110,7 @@
             <dependency>
                 <groupId>com.alibaba.fastjson2</groupId>
                 <artifactId>fastjson2</artifactId>
-                <version>${fastjson.version}</version>
+                <version>${fastjson2.version}</version>
             </dependency>
             <dependency>
                 <groupId>org.camunda.bpm.springboot</groupId>
@@ -215,14 +214,6 @@
                 <version>${opengauss.version}</version>
             </dependency>
 
-            <!-- fastjson2 -->
-            <dependency>
-                <groupId>com.alibaba.fastjson2</groupId>
-                <artifactId>fastjson2</artifactId>
-                <version>${fastjson2.version}</version>
-            </dependency>
-
-            <!-- JetCache -->
             <dependency>
                 <groupId>com.alicp.jetcache</groupId>
                 <artifactId>jetcache-starter-redis-lettuce</artifactId>

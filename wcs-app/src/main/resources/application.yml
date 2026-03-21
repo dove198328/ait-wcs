@@ -47,5 +47,5 @@ jetcache:
       valueEncoder: fastjson2
       valueDecoder: fastjson2
       # 推荐通过环境变量 REDIS_URI 提供，密码中若含特殊字符需先做 URL 编码
-      uri: ${REDIS_URI:redis://127.0.0.1:6379/0}
+      uri: redis://:123456@192.168.1.45:6379
       expireAfterWriteInMillis: 300000
