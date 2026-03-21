@@ -1,8 +1,9 @@
-﻿package cn.aitplus.wcs.core.spi.context;
+package cn.aitplus.wcs.core.spi.context;
+
+import lombok.Data;
 
 import java.util.HashMap;
 import java.util.Map;
-import lombok.Data;
 
 @Data
 public class BasePluginContext {

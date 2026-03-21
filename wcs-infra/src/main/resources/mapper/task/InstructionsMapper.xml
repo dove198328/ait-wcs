@@ -25,6 +25,11 @@
     <sql id="selectInstructionsorgan">
         select id, subtask_id, sequence, protocol, commands, params, status, created_at, updated_at, task_id, remark, device_id, message_event, event_logic from instructions
         <where>
+            and exists (
+                select 1 from subtasks s
+                where s.id = instructions.subtask_id
+                and s.warehouse_id = #{wareHouseId}
+            )
             <if test="ew.id != null">
                 and id = #{ew.id}
             </if>

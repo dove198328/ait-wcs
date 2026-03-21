@@ -40,6 +40,7 @@
     </properties>
 
     <modules>
+        <module>wcs-common</module>
         <module>wcs-core</module>
         <module>wcs-infra</module>
         <module>wcs-adapters</module>

@@ -7,5 +7,4 @@ import lombok.EqualsAndHashCode;
 @EqualsAndHashCode(callSuper = true)
 public class DispatchContext extends BasePluginContext {
 
-    private Step currentStep;
 }

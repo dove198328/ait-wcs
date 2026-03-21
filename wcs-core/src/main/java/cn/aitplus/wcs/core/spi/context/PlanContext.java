@@ -11,6 +11,5 @@ import lombok.EqualsAndHashCode;
 public class PlanContext extends BasePluginContext {
 
     private Task task;
-    private Plan plan;
     private List<String> steps = new ArrayList<String>();
 }

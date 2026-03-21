@@ -55,6 +55,7 @@
             </otherwise>
         </choose>
         <where>
+            and warehouse_id = #{wareHouseId}
             <if test="ew.id != null">
                 and id = #{ew.id}
             </if>
@@ -81,9 +82,6 @@
             </if>
             <if test="ew.updatedAt != null and ew.updatedAt != ''">
                 and updated_at = #{ew.updatedAt}
-            </if>
-            <if test="ew.warehouseId != null">
-                and warehouse_id = #{ew.warehouseId}
             </if>
             <if test="ew.bizType != null and ew.bizType != ''">
                 and biz_type = #{ew.bizType}
@@ -203,7 +201,7 @@
         </choose>
     </select>
 
-    <select id="queryTaskStatistics" resultType="com.alibaba.fastjson2.JSONObject">
+    <select id="queryTaskStatistics" resultType="cn.hutool.json.JSONObject">
         <choose>
             <when test="_databaseId == 'sqlserver'">
                 SELECT
@@ -216,7 +214,7 @@
                 FROM
                 tasks
                 WHERE
-                warehouse_id = #{warehouseId}
+                warehouse_id = #{wareHouseId}
             </when>
             <when test="_databaseId == 'postgresql'">
                 SELECT
@@ -229,7 +227,7 @@
                 FROM
                 tasks
                 WHERE
-                warehouse_id = #{warehouseId}
+                warehouse_id = #{wareHouseId}
             </when>
         </choose>
     </select>
@@ -394,7 +392,7 @@
         </choose>
     </select>
 
-    <select id="queryTaskStatisticsByDate" resultType="com.alibaba.fastjson2.JSONObject">
+    <select id="queryTaskStatisticsByDate" resultType="cn.hutool.json.JSONObject">
         <choose>
             <when test="_databaseId == 'sqlserver'">
                 SELECT ${groupByStr} as date, COUNT(*) as taskCount FROM tasks WHERE created_at >= #{start} AND created_at &lt;= #{end} and warehouse_id = #{warehouseId} GROUP BY ${groupByStr}
@@ -417,7 +415,7 @@
         </choose>
     </update>
 
-    <select id="queryEndPointSummary" resultType="com.alibaba.fastjson2.JSONObject">
+    <select id="queryEndPointSummary" resultType="cn.hutool.json.JSONObject">
         <choose>
             <when test="_databaseId == 'sqlserver'">
                 SELECT end_point as endPoint, COUNT(*) as taskCount, MIN(created_at) as earliestTime, MAX(priority) as highestPriority,
@@ -470,12 +468,12 @@
             <when test="_databaseId == 'sqlserver'">
                 select
                     <include refid="base_field"/>
-                from tasks WITH (NOLOCK) where id = #{id}
+                from tasks WITH (NOLOCK) where id = #{id} and warehouse_id = #{wareHouseId}
             </when>
             <when test="_databaseId == 'postgresql'">
                 select
                     <include refid="base_field"/>
-                from tasks where id = #{id}
+                from tasks where id = #{id} and warehouse_id = #{wareHouseId}
             </when>
         </choose>
     </select>
@@ -484,7 +482,7 @@
         select device_ids from tasks where id = #{id}
     </select>
 
-    <select id="queryEndPointSummaryOne" resultType="com.alibaba.fastjson2.JSONObject">
+    <select id="queryEndPointSummaryOne" resultType="cn.hutool.json.JSONObject">
         <choose>
             <when test="_databaseId == 'sqlserver'">
                 SELECT

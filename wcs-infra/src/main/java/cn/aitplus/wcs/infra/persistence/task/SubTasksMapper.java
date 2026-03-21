@@ -1,6 +1,8 @@
 package cn.aitplus.wcs.infra.persistence.task;
 
 import cn.aitplus.wcs.core.domain.model.SubTask;
+import com.baomidou.mybatisplus.core.metadata.IPage;
+import org.apache.ibatis.annotations.Param;
 
 import java.util.List;
 
@@ -10,9 +12,9 @@ import java.util.List;
  */
 public interface SubTasksMapper {
 
-    IPage<SubTask> queryByPage(@Param("page") IPage<SubTask> page, @Param("ew") SubTask subtasks);
+    IPage<SubTask> queryByPage(@Param("wareHouseId") Long wareHouseId, @Param("page") IPage<SubTask> page, @Param("ew") SubTask subtasks);
 
-    List<SubTask> queryList(@Param("ew") SubTask subtasks);
+    List<SubTask> queryList(@Param("wareHouseId") Long wareHouseId, @Param("ew") SubTask subtasks);
 
     // 批量插入子任务及其指令
     List<Long> insertbatch(@Param("list") List<SubTask> subtasks);
@@ -27,8 +29,8 @@ public interface SubTasksMapper {
     SubTask upsertSubtask(SubTask subtask);
 
     // 根据子任务ID获取对应的任务ID
-    SubTask queryById(Long subtaskIds);
+    SubTask queryById(@Param("wareHouseId") Long wareHouseId, @Param("id") Long subtaskIds);
 
-    SubTask queryNoCompletedByTaskId(Long taskId);
+    SubTask queryNoCompletedByTaskId(@Param("wareHouseId") Long wareHouseId, @Param("taskId") Long taskId);
 }
 

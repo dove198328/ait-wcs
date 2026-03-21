@@ -1,4 +1,19 @@
 spring:
+  application:
+    name: wcs-app
   mvc:
     pathmatch:
       matching-strategy: ant_path_matcher
+  profiles:
+    active: postgresql
+# 是否开启swagger注解
+swagger:
+  enabled: true
+
+# 是否开启返回数据加密
+wcs:
+  encrypt:
+    enabled: false
+
+# 同步数据的仓库id
+wareHouseId: 1

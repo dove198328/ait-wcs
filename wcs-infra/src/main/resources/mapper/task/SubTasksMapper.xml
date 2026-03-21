@@ -36,6 +36,7 @@
     <sql id="selectSubtasksorgan">
         select <include refid="base_field"/> from subtasks
         <where>
+            and warehouse_id = #{wareHouseId}
             <if test="ew.id != null">
                 and id = #{ew.id}
             </if>
@@ -65,9 +66,6 @@
             </if>
             <if test="ew.updatedAt != null and ew.updatedAt != ''">
                 and updated_at = #{ew.updatedAt}
-            </if>
-            <if test="ew.warehouseId != null">
-                and warehouse_id = #{ew.warehouseId}
             </if>
             <if test="ew.currentInstructionIndex != null">
                 and current_instruction_index = #{ew.currentInstructionIndex}
@@ -244,7 +242,7 @@
     <select id="queryById" resultType="cn.aitplus.wcs.core.domain.model.SubTask">
         SELECT
         <include refid="base_field"/>
-        FROM subtasks WHERE id = #{id}
+        FROM subtasks WHERE id = #{id} AND warehouse_id = #{wareHouseId}
     </select>
 
     <select id="queryNoCompletedByTaskId" parameterType="java.lang.Long" resultType="cn.aitplus.wcs.core.domain.model.SubTask">
@@ -254,6 +252,7 @@
                     <include refid="base_field"/>
                 FROM subtasks
                 where task_id = #{taskId}
+                and warehouse_id = #{wareHouseId}
                 and status != 'completed'
                 order by id asc
             </when>
@@ -262,6 +261,7 @@
                     <include refid="base_field"/>
                 FROM subtasks
                 where task_id = #{taskId}
+                and warehouse_id = #{wareHouseId}
                 and status != 'completed'
                 order by id asc
                 LIMIT 1

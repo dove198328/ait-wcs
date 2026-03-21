@@ -1,0 +1,60 @@
+package cn.aitplus.wcs.app.controller.task;
+
+import cn.aitplus.wcs.core.domain.model.SubTask;
+import cn.aitplus.wcs.infra.service.task.SubTasksService;
+import io.swagger.annotations.Api;
+import io.swagger.annotations.ApiOperation;
+import io.swagger.annotations.ApiParam;
+import org.springframework.web.bind.annotation.GetMapping;
+import org.springframework.web.bind.annotation.PathVariable;
+import org.springframework.web.bind.annotation.PostMapping;
+import org.springframework.web.bind.annotation.RequestBody;
+import org.springframework.web.bind.annotation.RequestMapping;
+import org.springframework.web.bind.annotation.RequestParam;
+import org.springframework.web.bind.annotation.RestController;
+
+import java.util.List;
+
+@RestController
+@Api(tags = "子任务管理")
+@RequestMapping("/api/{wareHouseId}/subtasks")
+public class SubTasksController {
+
+    private final SubTasksService subTasksService;
+
+    public SubTasksController(SubTasksService subTasksService) {
+        this.subTasksService = subTasksService;
+    }
+
+    @ApiOperation("查询子任务列表")
+    @PostMapping("/search")
+    public List<SubTask> queryList(@ApiParam("仓库ID") @PathVariable("wareHouseId") Long wareHouseId,
+                                   @RequestBody(required = false) SubTask subTask) {
+        SubTask query = subTask == null ? new SubTask() : subTask;
+        query.setWarehouseId(wareHouseId);
+        return subTasksService.queryList(wareHouseId, query);
+    }
+
+    @ApiOperation("根据ID查询子任务")
+    @GetMapping("/{id}")
+    public SubTask queryById(@ApiParam("仓库ID") @PathVariable("wareHouseId") Long wareHouseId,
+                             @ApiParam("子任务ID") @PathVariable("id") Long id) {
+        return subTasksService.queryById(wareHouseId, id);
+    }
+
+    @ApiOperation("新增或更新子任务")
+    @PostMapping("/upsert")
+    public SubTask upsert(@ApiParam("仓库ID") @PathVariable("wareHouseId") Long wareHouseId,
+                          @RequestBody SubTask subTask) {
+        subTask.setWarehouseId(wareHouseId);
+        return subTasksService.upsertSubtask(subTask);
+    }
+
+    @ApiOperation("查询TopN子任务")
+    @GetMapping("/top")
+    public List<SubTask> findTopNSubtasks(@ApiParam("仓库ID") @PathVariable("wareHouseId") Long wareHouseId,
+                                          @ApiParam("状态") @RequestParam("status") String status,
+                                          @ApiParam("返回条数") @RequestParam("limit") int limit) {
+        return subTasksService.findTopNSubtasks(wareHouseId, status, limit);
+    }
+}

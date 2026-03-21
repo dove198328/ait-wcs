@@ -1,6 +1,9 @@
 package cn.aitplus.wcs.infra.persistence.task;
 
 import cn.aitplus.wcs.core.domain.model.Task;
+import cn.hutool.json.JSONObject;
+import com.baomidou.mybatisplus.core.metadata.IPage;
+import org.apache.ibatis.annotations.Param;
 
 import java.util.Date;
 import java.util.List;
@@ -11,13 +14,13 @@ import java.util.Set;
  */
 public interface TasksMapper {
 
-    IPage<Task> queryByPage(@Param("page") IPage<Task> page, @Param("ew") Task tasks);
+    IPage<Task> queryByPage(@Param("wareHouseId") Long wareHouseId, @Param("page") IPage<Task> page, @Param("ew") Task tasks);
 
-    List<Task> queryList(@Param("ew") Task tasks);
+    List<Task> queryList(@Param("wareHouseId") Long wareHouseId, @Param("ew") Task tasks);
 
     List<Long> insertBatch(@Param("list") List<Task> tasks);
 
-    JSONObject queryTaskStatistics(@Param("warehouseId") String warehouseId);
+    JSONObject queryTaskStatistics(@Param("wareHouseId") Long wareHouseId);
 
     /**
      * 查询设备可执行的任务列表（支持排除被占用的巷道）
@@ -47,7 +50,7 @@ public interface TasksMapper {
 
     Date queryEarliestTaskTimeByEndPoint(@Param("endPoint") String endPoint, @Param("warehouseId") Long warehouseId);
 
-    Task queryById(Long taskId);
+    Task queryById(@Param("wareHouseId") Long wareHouseId, @Param("id") Long taskId);
 
     String selectDevicesById(Long taskId);
 
