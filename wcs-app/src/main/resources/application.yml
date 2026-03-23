@@ -44,8 +44,8 @@ jetcache:
       type: redis.lettuce
       keyConvertor: fastjson2
       broadcastChannel: wcs-cache-invalidate
-      valueEncoder: fastjson2
-      valueDecoder: fastjson2
+      valueEncoder: java
+      valueDecoder: java
       # 推荐通过环境变量 REDIS_URI 提供，密码中若含特殊字符需先做 URL 编码
       uri: redis://:123456@192.168.1.45:6379
       expireAfterWriteInMillis: 300000
