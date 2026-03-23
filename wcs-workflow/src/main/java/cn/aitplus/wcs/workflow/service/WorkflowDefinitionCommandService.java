@@ -284,7 +284,6 @@ public class WorkflowDefinitionCommandService {
                 .deploymentId(deployment.getId())
                 .processDefinitionKey(workflowId)
                 .tenantIdIn(warehouseTenantSupport.tenantIdOf(warehouseId))
-                .latestVersion()
                 .singleResult();
         if (processDefinition == null) {
             throw new IllegalStateException("流程定义部署成功，但未查询到 processDefinition");
