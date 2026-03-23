@@ -15,7 +15,7 @@ import java.time.LocalDateTime;
 import java.util.List;
 
 @Data
-@TableName("workflow_definitions")
+@TableName(value = "workflow_definitions", autoResultMap = true)
 @ApiModel("流程定义实体类")
 @Builder
 @AllArgsConstructor
@@ -73,6 +73,7 @@ public class WorkflowDefinition {
 
     @TableField(value = "status")
     @ApiModelProperty("状态 0 无效， 1有效")
+    @Builder.Default
     private int status = 1;
 
     @TableField(value = "process_def_id")

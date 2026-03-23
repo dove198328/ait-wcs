@@ -43,4 +43,14 @@ public interface TasksService {
     int updateNonExecuteTaskLocation(String taskNumber, String location, String startPoint, String twinsNo, String depth);
 
     List<String> queryCompatibleEndpointsByDeviceId(Long warehouseId, String deviceId);
+
+    /**
+     * 统计某租户下引用指定流程定义标识（workflowDefId）的任务数。
+     */
+    long countTasksByWarehouseAndWorkflowDefId(Long warehouseId, String workflowDefId);
+
+    /**
+     * 统计上述条件下处于「活跃」状态的任务数（pending/executing/suspended）。
+     */
+    long countActiveTasksByWarehouseAndWorkflowDefId(Long warehouseId, String workflowDefId);
 }
