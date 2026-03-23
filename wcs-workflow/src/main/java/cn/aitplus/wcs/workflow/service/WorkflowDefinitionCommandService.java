@@ -4,6 +4,7 @@ import cn.aitplus.wcs.common.constant.WcsConstants;
 import cn.aitplus.wcs.core.domain.model.WorkflowDefinition;
 import cn.aitplus.wcs.infra.service.task.TasksService;
 import cn.aitplus.wcs.infra.service.task.WorkflowDefinitionsService;
+import cn.aitplus.wcs.workflow.support.WarehouseTenantSupport;
 import com.alibaba.fastjson2.JSON;
 import org.camunda.bpm.engine.RepositoryService;
 import org.camunda.bpm.engine.RuntimeService;
@@ -32,34 +33,36 @@ public class WorkflowDefinitionCommandService {
     private final WorkflowDefinitionsService workflowDefinitionsService;
     private final RepositoryService repositoryService;
     private final RuntimeService runtimeService;
+    private final WarehouseTenantSupport warehouseTenantSupport;
 
     public WorkflowDefinitionCommandService(TasksService tasksService,
                                             WorkflowDefinitionsService workflowDefinitionsService,
                                             RepositoryService repositoryService,
-                                            RuntimeService runtimeService) {
+                                            RuntimeService runtimeService,
+                                            WarehouseTenantSupport warehouseTenantSupport) {
         this.tasksService = tasksService;
         this.workflowDefinitionsService = workflowDefinitionsService;
         this.repositoryService = repositoryService;
         this.runtimeService = runtimeService;
+        this.warehouseTenantSupport = warehouseTenantSupport;
     }
 
     @Transactional(rollbackFor = Exception.class)
-    public WorkflowDefinition createAndDeploy(Long wareHouseId, WorkflowDefinition workflowDefinition) {
-        if (wareHouseId == null) {
-            throw new IllegalArgumentException("wareHouseId不能为空");
-        }
+    public WorkflowDefinition createAndDeploy(Long warehouseId, WorkflowDefinition workflowDefinition) {
+        warehouseTenantSupport.assertAllowedWarehouse(warehouseId);
         if (workflowDefinition == null) {
             throw new IllegalArgumentException("流程定义不能为空");
         }
 
-        workflowDefinition.setWarehouseId(wareHouseId.intValue());
-        validateCreateRequest(wareHouseId, workflowDefinition);
+        workflowDefinition.setWarehouseId(warehouseId.intValue());
+        validateCreateRequest(warehouseId, workflowDefinition);
         validateProcessDataJson(workflowDefinition.getProcessData());
         parseAndValidateBpmn(workflowDefinition.getWorkflowId(), workflowDefinition.getConfig());
 
-        Deployment deployment = deployBpmn(wareHouseId, workflowDefinition);
+        Deployment deployment = deployBpmn(warehouseId, workflowDefinition);
         try {
-            ProcessDefinition processDefinition = queryDeployedProcessDefinition(wareHouseId, deployment, workflowDefinition.getWorkflowId());
+            ProcessDefinition processDefinition =
+                    queryDeployedProcessDefinition(warehouseId, deployment, workflowDefinition.getWorkflowId());
             workflowDefinition.setDeployId(deployment.getId());
             workflowDefinition.setProcessDefId(processDefinition.getId());
             LocalDateTime now = LocalDateTime.now();
@@ -74,36 +77,37 @@ public class WorkflowDefinitionCommandService {
     }
 
     @Transactional(rollbackFor = Exception.class)
-    public WorkflowDefinition updateAndRedeploy(Long wareHouseId, Long workflowDefinitionId, WorkflowDefinition workflowDefinition) {
-        if (wareHouseId == null) {
-            throw new IllegalArgumentException("wareHouseId不能为空");
-        }
+    public WorkflowDefinition updateAndRedeploy(Long warehouseId,
+                                                Long workflowDefinitionId,
+                                                WorkflowDefinition workflowDefinition) {
+        warehouseTenantSupport.assertAllowedWarehouse(warehouseId);
         if (workflowDefinitionId == null) {
-            throw new IllegalArgumentException("流程定义ID不能为空");
+            throw new IllegalArgumentException("流程定义 ID 不能为空");
         }
         if (workflowDefinition == null) {
             throw new IllegalArgumentException("流程定义不能为空");
         }
 
-        WorkflowDefinition existing = workflowDefinitionsService.queryById(wareHouseId, workflowDefinitionId);
+        WorkflowDefinition existing = workflowDefinitionsService.queryById(warehouseId, workflowDefinitionId);
         if (existing == null) {
             throw new IllegalArgumentException("流程定义不存在");
         }
-        if (hasActiveTaskReferences(wareHouseId, existing.getWorkflowId())
-                || hasActiveProcessInstances(wareHouseId, existing.getProcessDefId())) {
+        if (hasActiveTaskReferences(warehouseId, existing.getWorkflowId())
+                || hasActiveProcessInstances(warehouseId, existing.getProcessDefId())) {
             throw new IllegalArgumentException("当前流程定义存在运行中的任务或流程实例，不允许更新");
         }
 
         workflowDefinition.setId(workflowDefinitionId);
-        workflowDefinition.setWarehouseId(wareHouseId.intValue());
-        validateUpdateRequest(wareHouseId, existing, workflowDefinition);
+        workflowDefinition.setWarehouseId(warehouseId.intValue());
+        validateUpdateRequest(warehouseId, existing, workflowDefinition);
         validateProcessDataJson(workflowDefinition.getProcessData());
         parseAndValidateBpmn(workflowDefinition.getWorkflowId(), workflowDefinition.getConfig());
         WorkflowDefinition oldSnapshot = copyWorkflowDefinition(existing);
 
-        Deployment deployment = deployBpmn(wareHouseId, workflowDefinition);
+        Deployment deployment = deployBpmn(warehouseId, workflowDefinition);
         try {
-            ProcessDefinition processDefinition = queryDeployedProcessDefinition(wareHouseId, deployment, workflowDefinition.getWorkflowId());
+            ProcessDefinition processDefinition =
+                    queryDeployedProcessDefinition(warehouseId, deployment, workflowDefinition.getWorkflowId());
             mergeUpdatableFields(existing, workflowDefinition);
             existing.setDeployId(deployment.getId());
             existing.setProcessDefId(processDefinition.getId());
@@ -117,20 +121,18 @@ public class WorkflowDefinitionCommandService {
     }
 
     @Transactional(rollbackFor = Exception.class)
-    public void deletePhysically(Long wareHouseId, Long workflowDefinitionId) {
-        if (wareHouseId == null) {
-            throw new IllegalArgumentException("wareHouseId不能为空");
-        }
+    public void deletePhysically(Long warehouseId, Long workflowDefinitionId) {
+        warehouseTenantSupport.assertAllowedWarehouse(warehouseId);
         if (workflowDefinitionId == null) {
-            throw new IllegalArgumentException("流程定义ID不能为空");
+            throw new IllegalArgumentException("流程定义 ID 不能为空");
         }
 
-        WorkflowDefinition existing = workflowDefinitionsService.queryById(wareHouseId, workflowDefinitionId);
+        WorkflowDefinition existing = workflowDefinitionsService.queryById(warehouseId, workflowDefinitionId);
         if (existing == null) {
             throw new IllegalArgumentException("流程定义不存在");
         }
-        if (hasActiveTaskReferences(wareHouseId, existing.getWorkflowId())
-                || hasActiveProcessInstances(wareHouseId, existing.getProcessDefId())) {
+        if (hasActiveTaskReferences(warehouseId, existing.getWorkflowId())
+                || hasActiveProcessInstances(warehouseId, existing.getProcessDefId())) {
             throw new IllegalArgumentException("当前流程定义存在运行中的任务或流程实例，不允许删除");
         }
 
@@ -138,54 +140,58 @@ public class WorkflowDefinitionCommandService {
         deleteDeploymentIfPresent(existing.getDeployId());
     }
 
-    private void validateCreateRequest(Long wareHouseId, WorkflowDefinition workflowDefinition) {
+    private void validateCreateRequest(Long warehouseId, WorkflowDefinition workflowDefinition) {
         if (!StringUtils.hasText(workflowDefinition.getBizType())) {
-            throw new IllegalArgumentException("bizType不能为空");
+            throw new IllegalArgumentException("bizType 不能为空");
         }
         if (!StringUtils.hasText(workflowDefinition.getName())) {
             throw new IllegalArgumentException("流程名称不能为空");
         }
         if (!StringUtils.hasText(workflowDefinition.getWorkflowId())) {
-            throw new IllegalArgumentException("workflowId不能为空");
+            throw new IllegalArgumentException("workflowId 不能为空");
         }
         if (!StringUtils.hasText(workflowDefinition.getConfig())) {
-            throw new IllegalArgumentException("BPMN XML不能为空");
+            throw new IllegalArgumentException("BPMN XML 不能为空");
         }
-        if (workflowDefinitionsService.findByBizType(wareHouseId, workflowDefinition.getBizType()) != null) {
-            throw new IllegalArgumentException("当前仓库下该bizType已存在流程定义");
+        if (workflowDefinitionsService.findByBizType(warehouseId, workflowDefinition.getBizType()) != null) {
+            throw new IllegalArgumentException("当前仓库下该 bizType 已存在流程定义");
         }
-        if (workflowDefinitionsService.findByName(wareHouseId, workflowDefinition.getName()) != null) {
+        if (workflowDefinitionsService.findByName(warehouseId, workflowDefinition.getName()) != null) {
             throw new IllegalArgumentException("当前仓库下该名称已存在流程定义");
         }
     }
 
-    private void validateUpdateRequest(Long wareHouseId, WorkflowDefinition existing, WorkflowDefinition workflowDefinition) {
+    private void validateUpdateRequest(Long warehouseId,
+                                       WorkflowDefinition existing,
+                                       WorkflowDefinition workflowDefinition) {
         if (!StringUtils.hasText(workflowDefinition.getBizType())) {
-            throw new IllegalArgumentException("bizType不能为空");
+            throw new IllegalArgumentException("bizType 不能为空");
         }
         if (!StringUtils.hasText(workflowDefinition.getName())) {
             throw new IllegalArgumentException("流程名称不能为空");
         }
         if (!StringUtils.hasText(workflowDefinition.getWorkflowId())) {
-            throw new IllegalArgumentException("workflowId不能为空");
+            throw new IllegalArgumentException("workflowId 不能为空");
         }
         if (!StringUtils.hasText(workflowDefinition.getConfig())) {
-            throw new IllegalArgumentException("BPMN XML不能为空");
+            throw new IllegalArgumentException("BPMN XML 不能为空");
         }
         if (!existing.getBizType().equals(workflowDefinition.getBizType())
-                && hasAnyTaskReferences(wareHouseId, existing.getWorkflowId())) {
-            throw new IllegalArgumentException("当前流程定义已有任务数据引用，不允许修改bizType");
+                && hasAnyTaskReferences(warehouseId, existing.getWorkflowId())) {
+            throw new IllegalArgumentException("当前流程定义已有任务数据引用，不允许修改 bizType");
         }
         if (!existing.getWorkflowId().equals(workflowDefinition.getWorkflowId())
-                && hasAnyTaskReferences(wareHouseId, existing.getWorkflowId())) {
-            throw new IllegalArgumentException("当前流程定义已有任务数据引用，不允许修改workflowId");
+                && hasAnyTaskReferences(warehouseId, existing.getWorkflowId())) {
+            throw new IllegalArgumentException("当前流程定义已有任务数据引用，不允许修改 workflowId");
         }
 
-        WorkflowDefinition sameBizType = workflowDefinitionsService.findByBizType(wareHouseId, workflowDefinition.getBizType());
+        WorkflowDefinition sameBizType =
+                workflowDefinitionsService.findByBizType(warehouseId, workflowDefinition.getBizType());
         if (sameBizType != null && !sameBizType.getId().equals(existing.getId())) {
-            throw new IllegalArgumentException("当前仓库下该bizType已存在流程定义");
+            throw new IllegalArgumentException("当前仓库下该 bizType 已存在流程定义");
         }
-        WorkflowDefinition sameName = workflowDefinitionsService.findByName(wareHouseId, workflowDefinition.getName());
+        WorkflowDefinition sameName =
+                workflowDefinitionsService.findByName(warehouseId, workflowDefinition.getName());
         if (sameName != null && !sameName.getId().equals(existing.getId())) {
             throw new IllegalArgumentException("当前仓库下该名称已存在流程定义");
         }
@@ -198,7 +204,7 @@ public class WorkflowDefinitionCommandService {
         try {
             JSON.parse(processData);
         } catch (Exception ex) {
-            throw new IllegalArgumentException("processData不是合法的JSON格式");
+            throw new IllegalArgumentException("processData 不是合法的 JSON 格式");
         }
     }
 
@@ -209,18 +215,18 @@ public class WorkflowDefinitionCommandService {
             Bpmn.validateModel(modelInstance);
             Collection<Process> processes = modelInstance.getModelElementsByType(Process.class);
             if (processes == null || processes.isEmpty()) {
-                throw new IllegalArgumentException("BPMN XML中未找到流程定义");
+                throw new IllegalArgumentException("BPMN XML 中未找到流程定义");
             }
             boolean matched = processes.stream()
                     .map(Process::getId)
                     .anyMatch(workflowId::equals);
             if (!matched) {
-                throw new IllegalArgumentException("BPMN流程ID必须与workflowId一致");
+                throw new IllegalArgumentException("BPMN 流程 ID 必须与 workflowId 一致");
             }
         } catch (IllegalArgumentException ex) {
             throw ex;
         } catch (Exception ex) {
-            throw new IllegalArgumentException("config不是合法的BPMN XML格式");
+            throw new IllegalArgumentException("config 不是合法的 BPMN XML 格式");
         }
     }
 
@@ -237,49 +243,51 @@ public class WorkflowDefinitionCommandService {
         target.setStatus(source.getStatus());
     }
 
-    private boolean hasAnyTaskReferences(Long wareHouseId, String workflowId) {
+    private boolean hasAnyTaskReferences(Long warehouseId, String workflowId) {
         if (!StringUtils.hasText(workflowId)) {
             return false;
         }
-        return tasksService.countTasksByWarehouseAndWorkflowDefId(wareHouseId, workflowId) > 0;
+        return tasksService.countTasksByWarehouseAndWorkflowDefId(warehouseId, workflowId) > 0;
     }
 
-    private boolean hasActiveTaskReferences(Long wareHouseId, String workflowId) {
+    private boolean hasActiveTaskReferences(Long warehouseId, String workflowId) {
         if (!StringUtils.hasText(workflowId)) {
             return false;
         }
-        return tasksService.countActiveTasksByWarehouseAndWorkflowDefId(wareHouseId, workflowId) > 0;
+        return tasksService.countActiveTasksByWarehouseAndWorkflowDefId(warehouseId, workflowId) > 0;
     }
 
-    private boolean hasActiveProcessInstances(Long wareHouseId, String processDefId) {
+    private boolean hasActiveProcessInstances(Long warehouseId, String processDefId) {
         if (!StringUtils.hasText(processDefId)) {
             return false;
         }
         return runtimeService.createProcessInstanceQuery()
                 .processDefinitionId(processDefId)
-                .tenantIdIn(String.valueOf(wareHouseId))
+                .tenantIdIn(warehouseTenantSupport.tenantIdOf(warehouseId))
                 .active()
                 .count() > 0;
     }
 
-    private Deployment deployBpmn(Long wareHouseId, WorkflowDefinition workflowDefinition) {
+    private Deployment deployBpmn(Long warehouseId, WorkflowDefinition workflowDefinition) {
         return repositoryService.createDeployment()
                 .name(workflowDefinition.getName())
                 .source(WcsConstants.DEPLOYMENT_SOURCE)
-                .tenantId(String.valueOf(wareHouseId))
+                .tenantId(warehouseTenantSupport.tenantIdOf(warehouseId))
                 .addString(workflowDefinition.getWorkflowId() + ".bpmn", workflowDefinition.getConfig())
                 .deploy();
     }
 
-    private ProcessDefinition queryDeployedProcessDefinition(Long wareHouseId, Deployment deployment, String workflowId) {
+    private ProcessDefinition queryDeployedProcessDefinition(Long warehouseId,
+                                                             Deployment deployment,
+                                                             String workflowId) {
         ProcessDefinition processDefinition = repositoryService.createProcessDefinitionQuery()
                 .deploymentId(deployment.getId())
                 .processDefinitionKey(workflowId)
-                .tenantIdIn(String.valueOf(wareHouseId))
+                .tenantIdIn(warehouseTenantSupport.tenantIdOf(warehouseId))
                 .latestVersion()
                 .singleResult();
         if (processDefinition == null) {
-            throw new IllegalStateException("流程定义部署成功，但未查询到processDefinition");
+            throw new IllegalStateException("流程定义部署成功，但未查询到 processDefinition");
         }
         return processDefinition;
     }
@@ -319,7 +327,7 @@ public class WorkflowDefinitionCommandService {
             repositoryService.deleteDeployment(deployId, true);
         } catch (Exception rollbackEx) {
             originalEx.addSuppressed(rollbackEx);
-            log.warn("删除Camunda deployment失败, deployId={}", deployId, rollbackEx);
+            log.warn("删除 Camunda deployment 失败, deployId={}", deployId, rollbackEx);
         }
     }
 }

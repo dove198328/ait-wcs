@@ -9,25 +9,84 @@ spring:
 
 # 开发环境配置
 server:
-  # 服务器的HTTP端口
+  # 服务端 HTTP 端口
   port: 9021
   # 优雅停机
   shutdown: graceful
   servlet:
-    # 应用的访问路径
+    # 应用访问路径
     context-path: /
 
-# 是否开启swagger注解
+# 是否开启 Swagger 文档
 swagger:
   enabled: true
 
-# 是否开启返回数据加密
 wcs:
+  # 是否开启返回数据加密
   encrypt:
     enabled: false
+  workflow:
+    # 当前实例允许处理的仓库列表
+    allowedWarehouseIds:
+      - 1
+      - 2
+    worker:
+      # 嵌入式 worker 主题配置
+      topics:
+        generatePlan: wcs.generate-plan
+        executeStep: wcs.execute-step
+        handleException: wcs.handle-exception
+      # 单次拉取任务数
+      maxTasks: 20
+      # 任务锁定时长，单位毫秒
+      lockDurationMs: 60000
+      # 长轮询超时时间，单位毫秒
+      asyncResponseTimeoutMs: 30000
 
-# 同步数据的仓库id
-wareHouseId: 1
+camunda:
+  bpm:
+    authorization:
+      enabled: false
+    eventing:
+      history: false
+    database:
+      schema-update: false
+    job-execution:
+      enabled: true
+      # 减少作业获取延迟
+      core-pool-size: 3
+      # 控制作业并发
+      max-pool-size: 6
+      queue-capacity: 128
+      lock-time-in-millis: 300000
+      # 初始等待时间
+      wait-time-in-millis: 2000
+      # 1.0 表示不使用指数退避
+      wait-increase-factor: 1.0
+      # 最大获取等待时间
+      max-wait: 5000
+    filter:
+      create: All
+    generic-properties:
+      properties:
+        # 历史记录级别
+        history: activity
+        historyCleanupBatchWindowStartTime: "00:00"
+        historyCleanupBatchWindowEndTime: "01:00"
+        historyCleanupStrategy: removalTimeBased
+        historyRemovalTimeStrategy: end
+        batchOperationHistoryTimeToLive: P1D
+        historyTimeToLive: P1D
+        # 降低历史清理并行度
+        historyCleanupDegreeOfParallelism: 1
+        historyCleanupJobLogTimeToLive: P1D
+        # 单次清理批量
+        historyCleanupBatchSize: 200
+        telemetryReporterActivate: false
+        historyCleanupMetricsEnabled: false
+    metrics:
+      enabled: false
+      db-reporter-activate: false
 
 # JetCache 二级缓存配置
 jetcache:
@@ -46,7 +105,5 @@ jetcache:
       broadcastChannel: wcs-cache-invalidate
       valueEncoder: java
       valueDecoder: java
-      # 未配置 expireAfterWriteInMillis 时，Redis 侧 key 不因时间过期，依赖业务 @CacheInvalidate；
-      # 若需 TTL，在此增加 expireAfterWriteInMillis，或在 @Cached 上设置 expire（秒）覆盖远程过期。
-      # 推荐通过环境变量 REDIS_URI 提供，密码中若含特殊字符需先做 URL 编码
+      # 推荐通过环境变量 REDIS_URI 提供；如果密码包含特殊字符，需要先做 URL 编码
       uri: redis://:123456@192.168.1.45:6379

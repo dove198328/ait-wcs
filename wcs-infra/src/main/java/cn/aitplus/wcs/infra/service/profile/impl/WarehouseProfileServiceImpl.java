@@ -28,7 +28,7 @@ public class WarehouseProfileServiceImpl implements WarehouseProfileService {
     private final ProfileChainNodeMapper chainNodeMapper;
 
     /**
-     * 自引用代理：循环按链名失效时需走 AOP，同 {@link WorkflowDefinitionsServiceImpl#self}。
+     * 自引用代理：循环按链名失效时需走 AOP，
      */
     @Autowired
     @Lazy

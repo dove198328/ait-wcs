@@ -6,15 +6,15 @@ spring:
     type: com.zaxxer.hikari.HikariDataSource
     driver-class-name: org.postgresql.Driver
     hikari:
-      # 配置获取连接等待超时的时间
+      # 获取连接超时时间
       connectionTimeout: 30000
-      # 校验超时时间
+      # 连接校验超时时间
       validationTimeout: 5000
-      # 空闲连接存活最大时间，默认10分钟
+      # 空闲连接最大存活时间，默认 10 分钟
       idleTimeout: 600000
-      # 此属性控制池中连接的最长生命周期，值0表示无限生命周期，默认30分钟
+      # 连接最大生命周期，0 表示不限制
       maxLifetime: 1800000
-      # 多久检查一次连接的活性
+      # 连接保活检查间隔
       keepaliveTime: 30000
       maximum-pool-size: 20
       minimum-idle: 10
@@ -30,3 +30,9 @@ spring:
         max-idle: 8
         min-idle: 2
         max-wait: 5000ms
+
+camunda:
+  bpm:
+    database:
+      type: postgres
+      jdbc-batch-processing: false
