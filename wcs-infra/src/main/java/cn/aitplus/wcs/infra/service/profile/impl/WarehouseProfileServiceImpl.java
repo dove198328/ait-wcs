@@ -1,23 +1,21 @@
 package cn.aitplus.wcs.infra.service.profile.impl;
 
-import cn.aitplus.wcs.common.constant.ProfileCacheConstants;
+import cn.aitplus.wcs.common.constant.WcsConstants;
 import cn.aitplus.wcs.core.domain.model.ProfileChainNode;
 import cn.aitplus.wcs.core.domain.model.WarehouseProfile;
 import cn.aitplus.wcs.infra.persistence.profile.ProfileChainNodeMapper;
 import cn.aitplus.wcs.infra.persistence.profile.WarehouseProfileMapper;
 import cn.aitplus.wcs.infra.service.profile.WarehouseProfileService;
-import com.alicp.jetcache.Cache;
-import com.alicp.jetcache.CacheManager;
+import com.alicp.jetcache.anno.CacheInvalidate;
 import com.alicp.jetcache.anno.CacheType;
-import com.alicp.jetcache.template.QuickConfig;
+import com.alicp.jetcache.anno.Cached;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
+import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.context.annotation.Lazy;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
-import org.springframework.transaction.support.TransactionSynchronization;
-import org.springframework.transaction.support.TransactionSynchronizationManager;
 
-import java.time.Duration;
 import java.util.Collections;
 import java.util.List;
 
@@ -28,33 +26,29 @@ public class WarehouseProfileServiceImpl implements WarehouseProfileService {
 
     private final WarehouseProfileMapper profileMapper;
     private final ProfileChainNodeMapper chainNodeMapper;
-    private final Cache<Long, WarehouseProfile> profileCache;
-    private final Cache<String, List<ProfileChainNode>> chainCache;
+
+    /**
+     * 自引用代理：循环按链名失效时需走 AOP，同 {@link WorkflowDefinitionsServiceImpl#self}。
+     */
+    @Autowired
+    @Lazy
+    private WarehouseProfileServiceImpl self;
 
     public WarehouseProfileServiceImpl(WarehouseProfileMapper profileMapper,
-                                       ProfileChainNodeMapper chainNodeMapper,
-                                       CacheManager cacheManager) {
+                                       ProfileChainNodeMapper chainNodeMapper) {
         this.profileMapper = profileMapper;
         this.chainNodeMapper = chainNodeMapper;
-        this.profileCache = cacheManager.getOrCreateCache(
-                QuickConfig.newBuilder(ProfileCacheConstants.PROFILE_CACHE_NAME)
-                        .cacheType(CacheType.BOTH)
-                        .expire(Duration.ofSeconds(300))
-                        .syncLocal(true)
-                        .build());
-        this.chainCache = cacheManager.getOrCreateCache(
-                QuickConfig.newBuilder(ProfileCacheConstants.CHAIN_CACHE_NAME)
-                        .cacheType(CacheType.BOTH)
-                        .expire(Duration.ofSeconds(300))
-                        .syncLocal(true)
-                        .build());
     }
 
     @Override
+    @Cached(
+            name = WcsConstants.PROFILE_CACHE_NAME,
+            key = "#warehouseId",
+            cacheType = CacheType.BOTH,
+            localExpire = 300,
+            syncLocal = true)
     public WarehouseProfile getProfile(Long warehouseId) {
-        return profileCache.computeIfAbsent(warehouseId,
-                id -> profileMapper.selectByWarehouseId(id),
-                true);
+        return profileMapper.selectByWarehouseId(warehouseId);
     }
 
     @Override
@@ -64,6 +58,9 @@ public class WarehouseProfileServiceImpl implements WarehouseProfileService {
 
     @Override
     @Transactional
+    @CacheInvalidate(name = WcsConstants.PROFILE_CACHE_NAME,
+            key = "#profile.warehouseId",
+            condition = "#profile != null && #profile.warehouseId != null")
     public WarehouseProfile createProfile(WarehouseProfile profile) {
         if (profile.getVersion() == null) {
             profile.setVersion(1);
@@ -72,12 +69,14 @@ public class WarehouseProfileServiceImpl implements WarehouseProfileService {
             profile.setActive(true);
         }
         profileMapper.insert(profile);
-        evictAfterCommit(profile.getWarehouseId());
         return profile;
     }
 
     @Override
     @Transactional
+    @CacheInvalidate(name = WcsConstants.PROFILE_CACHE_NAME,
+            key = "#profile.warehouseId",
+            condition = "#profile != null && #profile.warehouseId != null")
     public WarehouseProfile updateProfile(WarehouseProfile profile) {
         WarehouseProfile current = profileMapper.selectByWarehouseId(profile.getWarehouseId());
         if (current == null) {
@@ -85,28 +84,31 @@ public class WarehouseProfileServiceImpl implements WarehouseProfileService {
         }
         profile.setVersion(current.getVersion() + 1);
         profileMapper.update(profile);
-        evictAfterCommit(profile.getWarehouseId());
         return profileMapper.selectByWarehouseId(profile.getWarehouseId());
     }
 
     @Override
     @Transactional
+    @CacheInvalidate(name = WcsConstants.PROFILE_CACHE_NAME,
+            key = "#warehouseId",
+            condition = "#warehouseId != null")
     public void deleteProfile(Long warehouseId) {
         List<String> chainNames = chainNodeMapper.selectChainNamesByWarehouseId(warehouseId);
         chainNodeMapper.deleteByWarehouseId(warehouseId);
         profileMapper.deleteByWarehouseId(warehouseId);
-        evictAfterCommit(warehouseId, chainNames);
+        evictChainCaches(warehouseId, chainNames);
     }
 
     @Override
+    @Cached(
+            name = WcsConstants.CHAIN_CACHE_NAME,
+            key = "#warehouseId + ':' + #chainName",
+            cacheType = CacheType.BOTH,
+            localExpire = 300,
+            syncLocal = true)
     public List<ProfileChainNode> getChainNodes(Long warehouseId, String chainName) {
-        String key = ProfileCacheConstants.buildChainCacheKey(warehouseId, chainName);
-        List<ProfileChainNode> nodes = chainCache.computeIfAbsent(key,
-                k -> {
-                    List<ProfileChainNode> result = chainNodeMapper.selectByChain(warehouseId, chainName);
-                    return result == null ? Collections.emptyList() : result;
-                });
-        return nodes == null ? Collections.emptyList() : nodes;
+        List<ProfileChainNode> result = chainNodeMapper.selectByChain(warehouseId, chainName);
+        return result == null ? Collections.emptyList() : result;
     }
 
     @Override
@@ -116,6 +118,9 @@ public class WarehouseProfileServiceImpl implements WarehouseProfileService {
 
     @Override
     @Transactional
+    @CacheInvalidate(name = WcsConstants.CHAIN_CACHE_NAME,
+            key = "#warehouseId + ':' + #chainName",
+            condition = "#warehouseId != null && T(org.springframework.util.StringUtils).hasText(#chainName)")
     public void replaceChainNodes(Long warehouseId, String chainName, List<ProfileChainNode> nodes) {
         chainNodeMapper.deleteByWarehouseIdAndChain(warehouseId, chainName);
         if (nodes != null && !nodes.isEmpty()) {
@@ -130,59 +135,27 @@ public class WarehouseProfileServiceImpl implements WarehouseProfileService {
             }
             chainNodeMapper.batchInsert(nodes);
         }
-        evictChainAfterCommit(warehouseId, chainName);
         log.info("Replace chain nodes done, warehouseId={}, chain={}, nodeCount={}", warehouseId, chainName,
                 nodes == null ? 0 : nodes.size());
     }
 
     @Override
     @Transactional
+    @CacheInvalidate(name = WcsConstants.CHAIN_CACHE_NAME,
+            key = "#warehouseId + ':' + #chainName",
+            condition = "#warehouseId != null && T(org.springframework.util.StringUtils).hasText(#chainName)")
     public void deleteChainNodes(Long warehouseId, String chainName) {
         chainNodeMapper.deleteByWarehouseIdAndChain(warehouseId, chainName);
-        evictChainAfterCommit(warehouseId, chainName);
     }
 
     @Override
+    @CacheInvalidate(name = WcsConstants.PROFILE_CACHE_NAME,
+            key = "#warehouseId",
+            condition = "#warehouseId != null")
     public void evictCache(Long warehouseId) {
         List<String> chainNames = chainNodeMapper.selectChainNamesByWarehouseId(warehouseId);
-        profileCache.remove(warehouseId);
         evictChainCaches(warehouseId, chainNames);
         log.info("Manual cache eviction done, warehouseId={}", warehouseId);
-    }
-
-    private void evictAfterCommit(Long warehouseId) {
-        List<String> chainNames = chainNodeMapper.selectChainNamesByWarehouseId(warehouseId);
-        evictAfterCommit(warehouseId, chainNames);
-    }
-
-    private void evictAfterCommit(Long warehouseId, List<String> chainNames) {
-        if (TransactionSynchronizationManager.isSynchronizationActive()) {
-            TransactionSynchronizationManager.registerSynchronization(new TransactionSynchronization() {
-                @Override
-                public void afterCommit() {
-                    profileCache.remove(warehouseId);
-                    evictChainCaches(warehouseId, chainNames);
-                    log.info("Evict profile cache after commit, warehouseId={}", warehouseId);
-                }
-            });
-        } else {
-            profileCache.remove(warehouseId);
-            evictChainCaches(warehouseId, chainNames);
-        }
-    }
-
-    private void evictChainAfterCommit(Long warehouseId, String chainName) {
-        if (TransactionSynchronizationManager.isSynchronizationActive()) {
-            TransactionSynchronizationManager.registerSynchronization(new TransactionSynchronization() {
-                @Override
-                public void afterCommit() {
-                    chainCache.remove(ProfileCacheConstants.buildChainCacheKey(warehouseId, chainName));
-                    log.info("Evict chain cache after commit, warehouseId={}, chain={}", warehouseId, chainName);
-                }
-            });
-        } else {
-            chainCache.remove(ProfileCacheConstants.buildChainCacheKey(warehouseId, chainName));
-        }
     }
 
     private void evictChainCaches(Long warehouseId, List<String> chainNames) {
@@ -190,7 +163,17 @@ public class WarehouseProfileServiceImpl implements WarehouseProfileService {
             return;
         }
         for (String chain : chainNames) {
-            chainCache.remove(ProfileCacheConstants.buildChainCacheKey(warehouseId, chain));
+            self.evictChainCacheEntry(warehouseId, chain);
         }
+    }
+
+    /**
+     * 仅供 {@link #evictChainCaches} 经代理调用以触发 {@link CacheInvalidate}，勿从接口对外暴露业务语义。
+     */
+    @CacheInvalidate(name = WcsConstants.CHAIN_CACHE_NAME,
+            key = "#warehouseId + ':' + #chainName",
+            condition = "#warehouseId != null && T(org.springframework.util.StringUtils).hasText(#chainName)")
+    public void evictChainCacheEntry(Long warehouseId, String chainName) {
+        // no-op
     }
 }

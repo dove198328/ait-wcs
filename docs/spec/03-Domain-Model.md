@@ -4,6 +4,11 @@
 > 上层：Task → SubTask → Instruction（含 `List<Command>`）  
 > 下层（松耦合横切）：CommandExecution（指令执行审计）、ResourceLock（资源锁）、WarehouseProfile / ProfileChainNode（仓库配置与责任链编排）
 
+约定：
+- `TaskPhase` 必须由 enum 建模，禁止继续作为无约束字符串扩散
+- `WorkDirection`、任务/子任务/指令/执行审计/资源锁状态等有限取值字段应逐步收敛为 enum，并与 DB 文档中的状态表保持一致
+- 流程定义属于可缓存的配置型数据，读取优先走二级缓存；缓存不改变领域语义，只作为读取优化层
+
 ---
 
 ## 1. 上层核心实体（任务执行链路）
@@ -49,6 +54,10 @@
 | updatedAt | LocalDateTime | 更新时间 |
 
 聚合关系：`Task` 包含 `List<SubTask>`
+
+补充约束：
+- `status`、`taskType`、`taskCategory`、`taskPhase`、`workDirection` 属于有限取值字段，应由领域 enum 统一约束
+- `workflowDefId` 用于关联流程定义，若已有任务历史数据引用，则对应流程定义不得随意修改关键标识
 
 ### 1.2 SubTask（子任务）
 
@@ -187,6 +196,36 @@
 | createdAt | Timestamp | 创建时间 |
 | updatedAt | Timestamp | 更新时间 |
 
+### 2.5 WorkflowDefinition（流程定义）
+
+> 记录业务流程定义、部署结果与执行入口配置；创建后需部署到 Camunda，并回填 deployment / process definition 元信息。  
+> 通过 `workflowDefId` 被 `tasks` / `subtasks` 逻辑引用。
+
+| 字段 | 类型 | 说明 |
+|------|------|------|
+| id | Long | 主键 |
+| warehouseId | Integer | 仓库ID |
+| bizType | String | 业务二级类型 |
+| workflowId | String | 业务流程定义标识 |
+| name | String | 流程名称 |
+| config | String | BPMN XML |
+| processData | String | 流程 JSON 配置 |
+| subtaskDefinitions | List\<SubtaskDefinition\> | 子任务定义列表 |
+| firstSubDef | String | 首个子任务定义标识 |
+| isAutoStart | Integer | 是否自动启动 |
+| status | Integer | 启用状态 |
+| processDefId | String | Camunda 流程定义ID |
+| deployId | String | Camunda 部署ID |
+| createdAt | LocalDateTime | 创建时间 |
+| updatedAt | LocalDateTime | 更新时间 |
+
+生命周期约束：
+- 创建前必须校验 `config` 为合法 BPMN XML，`processData` 为合法 JSON（若提供）
+- 同仓库下 `bizType`、`name` 必须唯一
+- 更新仅在无活跃任务、无活跃流程实例时允许
+- 若已有任务数据引用，则不得修改 `workflowId`、`bizType`
+- 删除采用物理删除，但必须先确认无活跃任务、无活跃流程实例
+
 ---
 
 ## 3. 实体关系概览
@@ -202,6 +241,9 @@ Task (tasks)
 
 WarehouseProfile (wcs_warehouse_profile)              [独立，按warehouseId关联]
  └── 1:N ── ProfileChainNode (wcs_profile_chain_node) [独立，按warehouseId+chainName关联]
+
+WorkflowDefinition (workflow_definitions)
+ └── 1:N ── Task/SubTask                                [逻辑引用，通过 workflowDefId 关联]
 ```
 
 ---

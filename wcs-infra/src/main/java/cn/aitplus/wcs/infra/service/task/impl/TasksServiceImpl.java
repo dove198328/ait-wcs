@@ -1,7 +1,9 @@
 package cn.aitplus.wcs.infra.service.task.impl;
 
-import com.baomidou.mybatisplus.core.metadata.IPage;
+import cn.aitplus.wcs.core.domain.enums.TaskStatus;
 import cn.aitplus.wcs.core.domain.model.Task;
+import com.baomidou.mybatisplus.core.conditions.query.LambdaQueryWrapper;
+import com.baomidou.mybatisplus.core.metadata.IPage;
 import cn.hutool.json.JSONObject;
 import cn.aitplus.wcs.infra.persistence.task.TasksMapper;
 import cn.aitplus.wcs.infra.service.task.TasksService;
@@ -103,5 +105,23 @@ public class TasksServiceImpl implements TasksService {
     @Override
     public List<String> queryCompatibleEndpointsByDeviceId(Long warehouseId, String deviceId) {
         return tasksMapper.queryCompatibleEndpointsByDeviceId(warehouseId, deviceId);
+    }
+
+    @Override
+    public long countTasksByWarehouseAndWorkflowDefId(Long warehouseId, String workflowDefId) {
+        return tasksMapper.selectCount(new LambdaQueryWrapper<Task>()
+                .eq(Task::getWarehouseId, warehouseId)
+                .eq(Task::getWorkflowDefId, workflowDefId));
+    }
+
+    @Override
+    public long countActiveTasksByWarehouseAndWorkflowDefId(Long warehouseId, String workflowDefId) {
+        return tasksMapper.selectCount(new LambdaQueryWrapper<Task>()
+                .eq(Task::getWarehouseId, warehouseId)
+                .eq(Task::getWorkflowDefId, workflowDefId)
+                .in(Task::getStatus,
+                        TaskStatus.PENDING.getValue(),
+                        TaskStatus.EXECUTING.getValue(),
+                        TaskStatus.SUSPENDED.getValue()));
     }
 }

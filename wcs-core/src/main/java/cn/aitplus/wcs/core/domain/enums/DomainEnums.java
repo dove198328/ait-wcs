@@ -12,15 +12,7 @@ public final class DomainEnums {
         RELOCATE
     }
 
-    public enum TaskStatus {
-        CREATED,
-        READY,
-        RUNNING,
-        SUSPENDED,
-        FAILED,
-        COMPLETED,
-        CANCELED
-    }
+    // 主任务持久化状态见 cn.aitplus.wcs.core.domain.enums.TaskStatus（实体仍为 String，用 getValue() 与库对齐）
 
     public enum PlanStatus {
         CREATED,

@@ -46,6 +46,7 @@ jetcache:
       broadcastChannel: wcs-cache-invalidate
       valueEncoder: java
       valueDecoder: java
+      # 未配置 expireAfterWriteInMillis 时，Redis 侧 key 不因时间过期，依赖业务 @CacheInvalidate；
+      # 若需 TTL，在此增加 expireAfterWriteInMillis，或在 @Cached 上设置 expire（秒）覆盖远程过期。
       # 推荐通过环境变量 REDIS_URI 提供，密码中若含特殊字符需先做 URL 编码
       uri: redis://:123456@192.168.1.45:6379
-      expireAfterWriteInMillis: 300000

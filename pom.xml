@@ -249,6 +249,8 @@
                         <source>${java.version}</source>
                         <target>${java.version}</target>
                         <encoding>${project.build.sourceEncoding}</encoding>
+                        <!-- JetCache 方法缓存 key 中 SpEL 使用参数名 -->
+                        <parameters>true</parameters>
                     </configuration>
                 </plugin>
             </plugins>

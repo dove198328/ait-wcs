@@ -4,6 +4,12 @@
 > 约束：`warehouse_id` 强约束；所有查询默认按 warehouse 过滤；关键写入必须幂等。  
 > 上层表（tasks/subtasks/instructions）保留当前已有结构；下层能力表（wcs_ 前缀）为新增松耦合组件。
 
+缓存说明：
+- 二级缓存只作为读取优化层，不改变持久化语义与事务边界
+- `CacheType.BOTH` 场景下，本地缓存允许设置过期时间，Redis 二级缓存默认不设置过期时间
+- 所有缓存写操作必须由增删改路径主动维护，不能依赖 Redis TTL 被动失效
+- 租户与仓库一一对应：凡进入 Redis/本地二级的业务缓存 key 必须带租户维度（通常为 `warehouseId` 前缀或与主键组合，如 `warehouseId:entityId`），禁止仅依赖全局唯一 id 作为唯一维度
+
 ---
 
 ## 1. 命名与通用约定
@@ -283,6 +289,48 @@ create index if not exists idx_chain_warehouse_bean on wcs_profile_chain_node (w
 
 ---
 
+## 4.3 `workflow_definitions`
+
+用途：流程定义表（业务流程配置 + Camunda deployment 元信息）
+
+```sql
+create table if not exists workflow_definitions (
+  id bigserial primary key,
+  warehouse_id bigint not null,
+  biz_type varchar(64) not null,
+  workflow_id varchar(128) not null,
+  config text not null,
+  process_data text,
+  process_data_with_device jsonb,
+  name varchar(256) not null,
+  priority int default 0,
+  is_auto_start int default 0,
+  first_sub_def varchar(128),
+  status int not null default 1,
+  process_def_id varchar(128),
+  deploy_id varchar(128),
+  created_at timestamp with time zone not null default now(),
+  updated_at timestamp with time zone not null default now()
+);
+```
+
+约束建议：
+
+```sql
+create unique index if not exists uk_workflow_def_warehouse_biz_type on workflow_definitions (warehouse_id, biz_type);
+create unique index if not exists uk_workflow_def_warehouse_name on workflow_definitions (warehouse_id, name);
+create unique index if not exists uk_workflow_def_warehouse_workflow_id on workflow_definitions (warehouse_id, workflow_id);
+create index if not exists idx_workflow_def_warehouse_process_def on workflow_definitions (warehouse_id, process_def_id);
+```
+
+说明：
+- `config` 存 BPMN XML，写入前必须完成 BPMN 结构校验
+- `process_data` 存流程 JSON 配置，非空时必须是合法 JSON
+- `process_def_id`、`deploy_id` 在 Camunda 部署成功后回填
+- 删除采用物理删除，但前提是不存在活跃任务和活跃流程实例
+
+---
+
 ## 5. 状态枚举对齐
 
 | 表 | 状态值 |
@@ -292,6 +340,7 @@ create index if not exists idx_chain_warehouse_bean on wcs_profile_chain_node (w
 | instructions.status | `pending \| executing \| completed \| failed \| skipped` |
 | wcs_command_execution.status | `SENT \| ACK \| RUNNING \| DONE \| ERROR \| TIMEOUT \| CANCELED` |
 | wcs_resource_lock.status | `HELD \| RELEASED \| EXPIRED` |
+| workflow_definitions.status | `0 \| 1`（建议由领域 enum/常量统一约束其业务语义） |
 
 ---
 
@@ -302,6 +351,7 @@ create index if not exists idx_chain_warehouse_bean on wcs_profile_chain_node (w
 - 幂等入口保护：指令层 `uk_instruction_seq`（subtask 内 sequence 唯一），执行层 `uk_cmd_idempotency`
 - 锁语义：`uk_lock_key` 保证同一 warehouse 同一资源单持有者，`expire_at` 用于死锁回收且回收动作必须审计
 - 下层能力表与上层业务表之间采用 **逻辑引用**（不设硬外键），保持松耦合
+- 业务状态字面量、缓存 key 前缀、Camunda deployment source 等必须在代码中统一归口，禁止散落硬编码
 
 ---
 
