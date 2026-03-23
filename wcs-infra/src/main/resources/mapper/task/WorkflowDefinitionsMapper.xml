@@ -22,11 +22,15 @@
     </resultMap>
 
     <sql id="selectWorkflowDefinitionsorgan">
-        select id, biz_type, workflow_id, config, created_at,warehouse_id,is_auto_start,first_sub_def,status,
-               updated_at,name,priority,process_data ,process_def_id,deploy_id from workflow_definitions
+        select id, biz_type, workflow_id, config, created_at, warehouse_id, is_auto_start, first_sub_def, status,
+               updated_at, name, priority, process_data, process_data_with_device, process_def_id, deploy_id
+        from workflow_definitions
         <where>
             <if test="ew.id != null">
                 and id = #{ew.id}
+            </if>
+            <if test="ew.warehouseId != null">
+                and warehouse_id = #{ew.warehouseId}
             </if>
             <if test="ew.bizType != null and ew.bizType != ''">
                 and biz_type = #{ew.bizType}
@@ -55,12 +59,18 @@
         <include refid="selectWorkflowDefinitionsorgan"/>
     </select>
     <select id="findByBizType" resultMap="WorkflowDefinitionsMap">
-        select * from workflow_definitions where biz_type = #{bizType}
+        select * from workflow_definitions
+        where warehouse_id = #{warehouseId}
+          and biz_type = #{bizType}
     </select>
-    <select id="queryByworkFlowId" resultMap="WorkflowDefinitionsMap">
-        select * from workflow_definitions where workflow_id = #{workFlowId}
+    <select id="queryByWorkflowId" resultMap="WorkflowDefinitionsMap">
+        select * from workflow_definitions
+        where warehouse_id = #{warehouseId}
+          and workflow_id = #{workflowId}
     </select>
     <select id="getFirstSubDefString" resultType="java.lang.String">
-        select first_sub_def from workflow_definitions where workflow_id = #{workFlowId}
+        select first_sub_def from workflow_definitions
+        where warehouse_id = #{warehouseId}
+          and workflow_id = #{workflowId}
     </select>
 </mapper>

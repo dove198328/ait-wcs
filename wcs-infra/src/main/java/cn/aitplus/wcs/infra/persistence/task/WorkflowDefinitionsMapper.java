@@ -22,10 +22,10 @@ public interface WorkflowDefinitionsMapper extends BaseMapper<WorkflowDefinition
 
    List<WorkflowDefinition> queryList(@Param("ew") WorkflowDefinition workflowDefinitions);
 
-   WorkflowDefinition findByBizType(String bizType);
+   WorkflowDefinition findByBizType(@Param("warehouseId") Long warehouseId, @Param("bizType") String bizType);
 
-    WorkflowDefinition queryByworkFlowId(String workFlowId);
+    WorkflowDefinition queryByWorkflowId(@Param("warehouseId") Long warehouseId, @Param("workflowId") String workflowId);
 
-    String getFirstSubDefString(String workflowId);
+    String getFirstSubDefString(@Param("warehouseId") Long warehouseId, @Param("workflowId") String workflowId);
 }
 
