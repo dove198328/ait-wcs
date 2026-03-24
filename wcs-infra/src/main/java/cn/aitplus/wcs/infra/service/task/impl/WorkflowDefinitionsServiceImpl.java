@@ -15,9 +15,7 @@ import org.springframework.stereotype.Service;
 import java.util.List;
 
 /**
- * 流程定义：读路径 {@link Cached}；写路径通过 {@link CacheInvalidate} 淘汰相关 key，下次读再加载（与「远程可长期驻留、靠业务失效」一致）。
- * <p>
- * 一级/二级过期：{@code @Cached} 上 {@code localExpire}（秒）控制本地；{@code expire}（秒）控制远程，不设则走 {@code application.yml} 默认。
+ * 流程定义：统一 {@link WcsConstants#WORKFLOW_DEFINITION_CACHE_NAME}，用 key 前缀区分主键 / workflowId / bizType / name。
  */
 @Service
 public class WorkflowDefinitionsServiceImpl implements WorkflowDefinitionsService {
@@ -44,8 +42,8 @@ public class WorkflowDefinitionsServiceImpl implements WorkflowDefinitionsServic
 
     @Override
     @Cached(
-            name = WcsConstants.WORKFLOW_BY_ID_CACHE_NAME,
-            key = "#warehouseId + ':' + #workflowDefinitionId",
+            name = WcsConstants.WORKFLOW_DEFINITION_CACHE_NAME,
+            key = "'id:' + #warehouseId + ':' + #workflowDefinitionId",
             cacheType = CacheType.BOTH,
             localExpire = 300,
             syncLocal = true)
@@ -66,47 +64,35 @@ public class WorkflowDefinitionsServiceImpl implements WorkflowDefinitionsServic
     }
 
     @Override
-    @CacheInvalidate(name = WcsConstants.WORKFLOW_BY_ID_CACHE_NAME,
-            key = "#cacheKeySnapshotBeforeUpdate.warehouseId + ':' + #cacheKeySnapshotBeforeUpdate.id",
-            condition = "#cacheKeySnapshotBeforeUpdate != null && #cacheKeySnapshotBeforeUpdate.id != null && #cacheKeySnapshotBeforeUpdate.warehouseId != null")
-    @CacheInvalidate(name = WcsConstants.WORKFLOW_BY_BIZ_TYPE_CACHE_NAME,
-            key = "#cacheKeySnapshotBeforeUpdate.warehouseId + ':' + #cacheKeySnapshotBeforeUpdate.bizType",
-            condition = "#cacheKeySnapshotBeforeUpdate != null && #cacheKeySnapshotBeforeUpdate.warehouseId != null && T(org.springframework.util.StringUtils).hasText(#cacheKeySnapshotBeforeUpdate.bizType)")
-    @CacheInvalidate(name = WcsConstants.WORKFLOW_BY_NAME_CACHE_NAME,
-            key = "#cacheKeySnapshotBeforeUpdate.warehouseId + ':' + #cacheKeySnapshotBeforeUpdate.name",
-            condition = "#cacheKeySnapshotBeforeUpdate != null && #cacheKeySnapshotBeforeUpdate.warehouseId != null && T(org.springframework.util.StringUtils).hasText(#cacheKeySnapshotBeforeUpdate.name)")
-    @CacheInvalidate(name = WcsConstants.WORKFLOW_BY_WORKFLOW_ID_CACHE_NAME,
-            key = "#cacheKeySnapshotBeforeUpdate.warehouseId + ':' + #cacheKeySnapshotBeforeUpdate.workflowId",
-            condition = "#cacheKeySnapshotBeforeUpdate != null && #cacheKeySnapshotBeforeUpdate.warehouseId != null && T(org.springframework.util.StringUtils).hasText(#cacheKeySnapshotBeforeUpdate.workflowId)")
-    @CacheInvalidate(name = WcsConstants.WORKFLOW_BY_ID_CACHE_NAME,
-            key = "#persisted.warehouseId + ':' + #persisted.id",
-            condition = "#persisted != null && #persisted.id != null && #persisted.warehouseId != null")
-    @CacheInvalidate(name = WcsConstants.WORKFLOW_BY_BIZ_TYPE_CACHE_NAME,
-            key = "#persisted.warehouseId + ':' + #persisted.bizType",
-            condition = "#persisted != null && #persisted.warehouseId != null && T(org.springframework.util.StringUtils).hasText(#persisted.bizType)")
-    @CacheInvalidate(name = WcsConstants.WORKFLOW_BY_NAME_CACHE_NAME,
-            key = "#persisted.warehouseId + ':' + #persisted.name",
-            condition = "#persisted != null && #persisted.warehouseId != null && T(org.springframework.util.StringUtils).hasText(#persisted.name)")
-    @CacheInvalidate(name = WcsConstants.WORKFLOW_BY_WORKFLOW_ID_CACHE_NAME,
-            key = "#persisted.warehouseId + ':' + #persisted.workflowId",
-            condition = "#persisted != null && #persisted.warehouseId != null && T(org.springframework.util.StringUtils).hasText(#persisted.workflowId)")
+    @CacheInvalidate(name = WcsConstants.WORKFLOW_DEFINITION_CACHE_NAME,
+            key = "'id:' + #cacheKeySnapshotBeforeUpdate.warehouseId + ':' + #cacheKeySnapshotBeforeUpdate.id")
+    @CacheInvalidate(name = WcsConstants.WORKFLOW_DEFINITION_CACHE_NAME,
+            key = "'wf:' + #cacheKeySnapshotBeforeUpdate.warehouseId + ':' + #cacheKeySnapshotBeforeUpdate.workflowId")
+    @CacheInvalidate(name = WcsConstants.WORKFLOW_DEFINITION_CACHE_NAME,
+            key = "'biz:' + #cacheKeySnapshotBeforeUpdate.warehouseId + ':' + #cacheKeySnapshotBeforeUpdate.bizType")
+    @CacheInvalidate(name = WcsConstants.WORKFLOW_DEFINITION_CACHE_NAME,
+            key = "'name:' + #cacheKeySnapshotBeforeUpdate.warehouseId + ':' + #cacheKeySnapshotBeforeUpdate.name")
+    @CacheInvalidate(name = WcsConstants.WORKFLOW_DEFINITION_CACHE_NAME,
+            key = "'id:' + #persisted.warehouseId + ':' + #persisted.id")
+    @CacheInvalidate(name = WcsConstants.WORKFLOW_DEFINITION_CACHE_NAME,
+            key = "'wf:' + #persisted.warehouseId + ':' + #persisted.workflowId")
+    @CacheInvalidate(name = WcsConstants.WORKFLOW_DEFINITION_CACHE_NAME,
+            key = "'biz:' + #persisted.warehouseId + ':' + #persisted.bizType")
+    @CacheInvalidate(name = WcsConstants.WORKFLOW_DEFINITION_CACHE_NAME,
+            key = "'name:' + #persisted.warehouseId + ':' + #persisted.name")
     public void updateDefinition(WorkflowDefinition persisted, WorkflowDefinition cacheKeySnapshotBeforeUpdate) {
         workflowDefinitionsMapper.updateById(persisted);
     }
 
     @Override
-    @CacheInvalidate(name = WcsConstants.WORKFLOW_BY_ID_CACHE_NAME,
-            key = "#loaded.warehouseId + ':' + #loaded.id",
-            condition = "#loaded != null && #loaded.id != null && #loaded.warehouseId != null")
-    @CacheInvalidate(name = WcsConstants.WORKFLOW_BY_BIZ_TYPE_CACHE_NAME,
-            key = "#loaded.warehouseId + ':' + #loaded.bizType",
-            condition = "#loaded != null && #loaded.warehouseId != null && T(org.springframework.util.StringUtils).hasText(#loaded.bizType)")
-    @CacheInvalidate(name = WcsConstants.WORKFLOW_BY_NAME_CACHE_NAME,
-            key = "#loaded.warehouseId + ':' + #loaded.name",
-            condition = "#loaded != null && #loaded.warehouseId != null && T(org.springframework.util.StringUtils).hasText(#loaded.name)")
-    @CacheInvalidate(name = WcsConstants.WORKFLOW_BY_WORKFLOW_ID_CACHE_NAME,
-            key = "#loaded.warehouseId + ':' + #loaded.workflowId",
-            condition = "#loaded != null && #loaded.warehouseId != null && T(org.springframework.util.StringUtils).hasText(#loaded.workflowId)")
+    @CacheInvalidate(name = WcsConstants.WORKFLOW_DEFINITION_CACHE_NAME,
+            key = "'id:' + #loaded.warehouseId + ':' + #loaded.id")
+    @CacheInvalidate(name = WcsConstants.WORKFLOW_DEFINITION_CACHE_NAME,
+            key = "'wf:' + #loaded.warehouseId + ':' + #loaded.workflowId")
+    @CacheInvalidate(name = WcsConstants.WORKFLOW_DEFINITION_CACHE_NAME,
+            key = "'biz:' + #loaded.warehouseId + ':' + #loaded.bizType")
+    @CacheInvalidate(name = WcsConstants.WORKFLOW_DEFINITION_CACHE_NAME,
+            key = "'name:' + #loaded.warehouseId + ':' + #loaded.name")
     public void deleteDefinitionPhysical(WorkflowDefinition loaded) {
         int deletedRows = workflowDefinitionsMapper.deleteById(loaded.getId());
         if (deletedRows <= 0) {
@@ -116,8 +102,8 @@ public class WorkflowDefinitionsServiceImpl implements WorkflowDefinitionsServic
 
     @Override
     @Cached(
-            name = WcsConstants.WORKFLOW_BY_BIZ_TYPE_CACHE_NAME,
-            key = "#wareHouseId + ':' + #bizType",
+            name = WcsConstants.WORKFLOW_DEFINITION_CACHE_NAME,
+            key = "'biz:' + #wareHouseId + ':' + #bizType",
             cacheType = CacheType.BOTH,
             localExpire = 300,
             syncLocal = true)
@@ -127,8 +113,8 @@ public class WorkflowDefinitionsServiceImpl implements WorkflowDefinitionsServic
 
     @Override
     @Cached(
-            name = WcsConstants.WORKFLOW_BY_NAME_CACHE_NAME,
-            key = "#wareHouseId + ':' + #name",
+            name = WcsConstants.WORKFLOW_DEFINITION_CACHE_NAME,
+            key = "'name:' + #wareHouseId + ':' + #name",
             cacheType = CacheType.BOTH,
             localExpire = 300,
             syncLocal = true)
@@ -138,8 +124,8 @@ public class WorkflowDefinitionsServiceImpl implements WorkflowDefinitionsServic
 
     @Override
     @Cached(
-            name = WcsConstants.WORKFLOW_BY_WORKFLOW_ID_CACHE_NAME,
-            key = "#wareHouseId + ':' + #workflowId",
+            name = WcsConstants.WORKFLOW_DEFINITION_CACHE_NAME,
+            key = "'wf:' + #wareHouseId + ':' + #workflowId",
             cacheType = CacheType.BOTH,
             localExpire = 300,
             syncLocal = true)

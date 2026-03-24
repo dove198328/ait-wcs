@@ -13,11 +13,11 @@ public final class WcsConstants {
     /** Flowable / 流程部署来源标识 */
     public static final String DEPLOYMENT_SOURCE = "wcs-workflow-definition";
 
-    /** JetCache {@code name}：流程定义按主键（条目 key 为 warehouseId:id） */
-    public static final String WORKFLOW_BY_ID_CACHE_NAME = "wcs:workflow:id:";
-    public static final String WORKFLOW_BY_BIZ_TYPE_CACHE_NAME = "wcs:workflow:biz-type:";
-    public static final String WORKFLOW_BY_NAME_CACHE_NAME = "wcs:workflow:name:";
-    public static final String WORKFLOW_BY_WORKFLOW_ID_CACHE_NAME = "wcs:workflow:workflow-id:";
+    /**
+     * JetCache {@code name}：流程定义单一区域；条目 key 须带类型前缀：
+     * {@code id:warehouseId:pk}、{@code wf:warehouseId:workflowId}、{@code biz:...}、{@code name:...}。
+     */
+    public static final String WORKFLOW_DEFINITION_CACHE_NAME = "wcs:workflow:def:";
 
     /** JetCache {@code name}：仓库画像 / 责任链 */
     public static final String PROFILE_CACHE_NAME = "wcs:profile:";

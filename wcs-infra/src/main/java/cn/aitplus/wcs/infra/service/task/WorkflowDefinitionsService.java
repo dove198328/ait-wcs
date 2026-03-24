@@ -22,7 +22,8 @@ public interface WorkflowDefinitionsService {
     void insertDefinition(WorkflowDefinition definition);
 
     /**
-     * 更新流程定义；{@code cacheKeySnapshotBeforeUpdate} 用于淘汰更新前的二级缓存键（bizType/name/workflowId 可能变化）。
+     * 更新流程定义；按 {@code cacheKeySnapshotBeforeUpdate} 与 {@code persisted} 各淘汰一遍缓存键，
+     * 避免 bizType/name/workflowId 变更后旧键残留。
      */
     void updateDefinition(WorkflowDefinition persisted, WorkflowDefinition cacheKeySnapshotBeforeUpdate);
 

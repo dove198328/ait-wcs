@@ -1,10 +1,12 @@
 package cn.aitplus.wcs.workflow.service;
 
 import cn.aitplus.wcs.common.constant.WcsConstants;
+import cn.aitplus.wcs.core.domain.model.TaskDefinition;
 import cn.aitplus.wcs.core.domain.model.WorkflowDefinition;
 import cn.aitplus.wcs.infra.service.task.TasksService;
 import cn.aitplus.wcs.infra.service.task.WorkflowDefinitionsService;
 import cn.aitplus.wcs.workflow.support.WarehouseTenantSupport;
+import cn.aitplus.wcs.workflow.support.WorkFlowUtil;
 import com.alibaba.fastjson2.JSON;
 import org.camunda.bpm.engine.RepositoryService;
 import org.camunda.bpm.engine.RuntimeService;
@@ -65,9 +67,12 @@ public class WorkflowDefinitionCommandService {
                     queryDeployedProcessDefinition(warehouseId, deployment, workflowDefinition.getWorkflowId());
             workflowDefinition.setDeployId(deployment.getId());
             workflowDefinition.setProcessDefId(processDefinition.getId());
+            workflowDefinition.setFirstSubDef(
+                    WorkFlowUtil.getFirstSubTaskDefIdByProcessDefinitionId(processDefinition.getId()));
             LocalDateTime now = LocalDateTime.now();
             workflowDefinition.setCreatedAt(now);
             workflowDefinition.setUpdatedAt(now);
+            syncSubtaskDefinitionsFromTaskDefinition(workflowDefinition);
             workflowDefinitionsService.insertDefinition(workflowDefinition);
             return workflowDefinition;
         } catch (RuntimeException ex) {
@@ -99,20 +104,25 @@ public class WorkflowDefinitionCommandService {
 
         workflowDefinition.setId(workflowDefinitionId);
         workflowDefinition.setWarehouseId(warehouseId.intValue());
-        validateUpdateRequest(warehouseId, existing, workflowDefinition);
-        validateProcessDataJson(workflowDefinition.getProcessData());
-        parseAndValidateBpmn(workflowDefinition.getWorkflowId(), workflowDefinition.getConfig());
-        WorkflowDefinition oldSnapshot = copyWorkflowDefinition(existing);
 
-        Deployment deployment = deployBpmn(warehouseId, workflowDefinition);
+        WorkflowDefinition beforePatch = snapshotForUpdateValidation(existing);
+        applyNonNullPatch(existing, workflowDefinition);
+
+        validateUpdateRequest(warehouseId, beforePatch, existing);
+        validateProcessDataJson(existing.getProcessData());
+        parseAndValidateBpmn(existing.getWorkflowId(), existing.getConfig());
+
+        Deployment deployment = deployBpmn(warehouseId, existing);
         try {
             ProcessDefinition processDefinition =
-                    queryDeployedProcessDefinition(warehouseId, deployment, workflowDefinition.getWorkflowId());
-            mergeUpdatableFields(existing, workflowDefinition);
+                    queryDeployedProcessDefinition(warehouseId, deployment, existing.getWorkflowId());
+            syncSubtaskDefinitionsFromTaskDefinition(existing);
             existing.setDeployId(deployment.getId());
             existing.setProcessDefId(processDefinition.getId());
+            existing.setFirstSubDef(
+                    WorkFlowUtil.getFirstSubTaskDefIdByProcessDefinitionId(processDefinition.getId()));
             existing.setUpdatedAt(LocalDateTime.now());
-            workflowDefinitionsService.updateDefinition(existing, oldSnapshot);
+            workflowDefinitionsService.updateDefinition(existing, beforePatch);
             return existing;
         } catch (RuntimeException ex) {
             safeDeleteDeployment(deployment.getId(), ex);
@@ -161,40 +171,91 @@ public class WorkflowDefinitionCommandService {
         }
     }
 
+    /**
+     * @param beforePatch 合并请求体之前库里的状态（用于 bizType/workflowId 变更规则）
+     * @param merged      请求体中非 null 字段已覆盖到实体后的状态，校验与部署均以此为依据
+     */
     private void validateUpdateRequest(Long warehouseId,
-                                       WorkflowDefinition existing,
-                                       WorkflowDefinition workflowDefinition) {
-        if (!StringUtils.hasText(workflowDefinition.getBizType())) {
+                                       WorkflowDefinition beforePatch,
+                                       WorkflowDefinition merged) {
+        if (!StringUtils.hasText(merged.getBizType())) {
             throw new IllegalArgumentException("bizType 不能为空");
         }
-        if (!StringUtils.hasText(workflowDefinition.getName())) {
+        if (!StringUtils.hasText(merged.getName())) {
             throw new IllegalArgumentException("流程名称不能为空");
         }
-        if (!StringUtils.hasText(workflowDefinition.getWorkflowId())) {
+        if (!StringUtils.hasText(merged.getWorkflowId())) {
             throw new IllegalArgumentException("workflowId 不能为空");
         }
-        if (!StringUtils.hasText(workflowDefinition.getConfig())) {
+        if (!StringUtils.hasText(merged.getConfig())) {
             throw new IllegalArgumentException("BPMN XML 不能为空");
         }
-        if (!existing.getBizType().equals(workflowDefinition.getBizType())
-                && hasAnyTaskReferences(warehouseId, existing.getWorkflowId())) {
+        if (!beforePatch.getBizType().equals(merged.getBizType())
+                && hasAnyTaskReferences(warehouseId, beforePatch.getWorkflowId())) {
             throw new IllegalArgumentException("当前流程定义已有任务数据引用，不允许修改 bizType");
         }
-        if (!existing.getWorkflowId().equals(workflowDefinition.getWorkflowId())
-                && hasAnyTaskReferences(warehouseId, existing.getWorkflowId())) {
+        if (!beforePatch.getWorkflowId().equals(merged.getWorkflowId())
+                && hasAnyTaskReferences(warehouseId, beforePatch.getWorkflowId())) {
             throw new IllegalArgumentException("当前流程定义已有任务数据引用，不允许修改 workflowId");
         }
 
         WorkflowDefinition sameBizType =
-                workflowDefinitionsService.findByBizType(warehouseId, workflowDefinition.getBizType());
-        if (sameBizType != null && !sameBizType.getId().equals(existing.getId())) {
+                workflowDefinitionsService.findByBizType(warehouseId, merged.getBizType());
+        if (sameBizType != null && !sameBizType.getId().equals(beforePatch.getId())) {
             throw new IllegalArgumentException("当前仓库下该 bizType 已存在流程定义");
         }
         WorkflowDefinition sameName =
-                workflowDefinitionsService.findByName(warehouseId, workflowDefinition.getName());
-        if (sameName != null && !sameName.getId().equals(existing.getId())) {
+                workflowDefinitionsService.findByName(warehouseId, merged.getName());
+        if (sameName != null && !sameName.getId().equals(beforePatch.getId())) {
             throw new IllegalArgumentException("当前仓库下该名称已存在流程定义");
         }
+    }
+
+    /** 仅拷贝更新校验所需的旧值，避免与合并后的实体混淆引用。 */
+    /**
+     * 合并请求体之前在库中的字段：用于 bizType/workflowId 变更校验，以及缓存失效时的「更新前」键（id/wf/biz/name）。
+     */
+    private static WorkflowDefinition snapshotForUpdateValidation(WorkflowDefinition row) {
+        WorkflowDefinition s = new WorkflowDefinition();
+        s.setId(row.getId());
+        s.setWarehouseId(row.getWarehouseId());
+        s.setBizType(row.getBizType());
+        s.setName(row.getName());
+        s.setWorkflowId(row.getWorkflowId());
+        return s;
+    }
+
+    /**
+     * 请求体里「有传」的字段才覆盖到实体：JSON 缺省一般为 null，不覆盖库里的值。
+     * {@code isAutoStart}/{@code status} 为基本类型，反序列化后无法区分缺省与 0，仍始终随请求覆盖。
+     */
+    private static void applyNonNullPatch(WorkflowDefinition target, WorkflowDefinition patch) {
+        if (patch.getBizType() != null) {
+            target.setBizType(patch.getBizType());
+        }
+        if (patch.getWorkflowId() != null) {
+            target.setWorkflowId(patch.getWorkflowId());
+        }
+        if (patch.getConfig() != null) {
+            target.setConfig(patch.getConfig());
+        }
+        if (patch.getProcessData() != null) {
+            target.setProcessData(patch.getProcessData());
+        }
+        if (patch.getName() != null) {
+            target.setName(patch.getName());
+        }
+        if (patch.getPriority() != null) {
+            target.setPriority(patch.getPriority());
+        }
+        if (patch.getTaskDefinition() != null) {
+            target.setTaskDefinition(patch.getTaskDefinition());
+        }
+        if (patch.getSubtaskDefinitions() != null) {
+            target.setSubtaskDefinitions(patch.getSubtaskDefinitions());
+        }
+        target.setIsAutoStart(patch.getIsAutoStart());
+        target.setStatus(patch.getStatus());
     }
 
     private void validateProcessDataJson(String processData) {
@@ -230,17 +291,16 @@ public class WorkflowDefinitionCommandService {
         }
     }
 
-    private void mergeUpdatableFields(WorkflowDefinition target, WorkflowDefinition source) {
-        target.setBizType(source.getBizType());
-        target.setWorkflowId(source.getWorkflowId());
-        target.setConfig(source.getConfig());
-        target.setProcessData(source.getProcessData());
-        target.setName(source.getName());
-        target.setPriority(source.getPriority());
-        target.setSubtaskDefinitions(source.getSubtaskDefinitions());
-        target.setIsAutoStart(source.getIsAutoStart());
-        target.setFirstSubDef(source.getFirstSubDef());
-        target.setStatus(source.getStatus());
+    /** 有 {@link TaskDefinition} 时用其 {@code subtasks} 写入持久化字段 {@code subtaskDefinitions}。 */
+    private void syncSubtaskDefinitionsFromTaskDefinition(WorkflowDefinition def) {
+        if (def == null) {
+            return;
+        }
+        TaskDefinition taskDefinition = def.getTaskDefinition();
+        if (taskDefinition == null) {
+            return;
+        }
+        def.setSubtaskDefinitions(taskDefinition.getSubtasks());
     }
 
     private boolean hasAnyTaskReferences(Long warehouseId, String workflowId) {
@@ -296,29 +356,6 @@ public class WorkflowDefinitionCommandService {
             return;
         }
         repositoryService.deleteDeployment(deployId, true);
-    }
-
-    private WorkflowDefinition copyWorkflowDefinition(WorkflowDefinition source) {
-        return WorkflowDefinition.builder()
-                .id(source.getId())
-                .bizType(source.getBizType())
-                .workflowId(source.getWorkflowId())
-                .config(source.getConfig())
-                .createdAt(source.getCreatedAt())
-                .updatedAt(source.getUpdatedAt())
-                .processData(source.getProcessData())
-                .name(source.getName())
-                .priority(source.getPriority())
-                .warehouseId(source.getWarehouseId())
-                .subtaskDefinitions(source.getSubtaskDefinitions())
-                .isAutoStart(source.getIsAutoStart())
-                .firstSubDef(source.getFirstSubDef())
-                .status(source.getStatus())
-                .processDefId(source.getProcessDefId())
-                .taskDefinition(source.getTaskDefinition())
-                .workDirection(source.getWorkDirection())
-                .deployId(source.getDeployId())
-                .build();
     }
 
     private void safeDeleteDeployment(String deployId, RuntimeException originalEx) {
