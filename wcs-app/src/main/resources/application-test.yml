@@ -31,6 +31,12 @@ spring:
         min-idle: 2
         max-wait: 5000ms
 
+jetcache:
+  remote:
+    default:
+      # 密码含 @ # 等字符时需 URL 编码；亦可整体用环境变量覆盖为单一 REDIS_URI（须与 database 一致）
+      uri: redis://:${spring.redis.password}@${spring.redis.host}:${spring.redis.port}/${spring.redis.database}
+
 camunda:
   bpm:
     database:
