@@ -116,26 +116,26 @@
                 INSERT INTO subtasks (task_id, subtask_def_id, name, priority, status,
                                       warehouse_id, compensation, allow_manual, workflow_def_id, area,
                                       selected_device_id, current_instruction_index, is_start_next_process, free_device_id, created_at,
-                                      updated_at, check_aisle, bind_ddj)
+                                      updated_at, check_aisle)
                 OUTPUT INSERTED.id values
                 <foreach collection="list" item="item" separator=" , ">
                     (#{item.taskId}, #{item.subtaskDefId}, #{item.name}, #{item.priority}, #{item.status},
                      #{item.warehouseId}, #{item.compensation}, #{item.allowManual}, #{item.workflowDefId}, #{item.area},
                      #{item.selectedDeviceId}, #{item.currentInstructionIndex}, #{item.isStartNextProcess}, #{item.freeDeviceId}, #{item.createdAt},
-                     #{item.updatedAt}, #{item.checkAisle}, #{item.bindDDJ})
+                     #{item.updatedAt}, #{item.checkAisle})
                 </foreach>
             </when>
             <when test="_databaseId == 'postgresql'">
                 INSERT INTO subtasks (task_id, subtask_def_id, name, priority, status,
                                       warehouse_id, compensation, allow_manual, workflow_def_id, area,
                                       selected_device_id, current_instruction_index, is_start_next_process, free_device_id, created_at,
-                                      updated_at, check_aisle, bind_ddj)
+                                      updated_at, check_aisle)
                 values
                 <foreach collection="list" item="item" separator=" , ">
                     (#{item.taskId}, #{item.subtaskDefId}, #{item.name}, #{item.priority}, #{item.status},
                      #{item.warehouseId}, #{item.compensation}, #{item.allowManual}, #{item.workflowDefId}, #{item.area},
                      #{item.selectedDeviceId}, #{item.currentInstructionIndex}, #{item.isStartNextProcess}, #{item.freeDeviceId}, #{item.createdAt},
-                     #{item.updatedAt}, #{item.checkAisle}, #{item.bindDDJ})
+                     #{item.updatedAt}, #{item.checkAisle})
                 </foreach>
                 RETURNING id
             </when>
@@ -202,11 +202,11 @@
                 INSERT INTO subtasks (task_id, subtask_def_id, name, priority, status,
                                       warehouse_id, workflow_def_id, area, current_instruction_index, activity_instance_id,
                                       selected_device_id, is_start_next_process, free_device_id, created_at, updated_at,
-                                      check_aisle, bind_ddj)
+                                      check_aisle)
                 VALUES (#{taskId}, #{subtaskDefId}, #{name}, #{priority}, #{status},
                         #{warehouseId}, #{workflowDefId}, #{area}, #{currentInstructionIndex}, #{activityInstanceId},
                         #{selectedDeviceId}, #{isStartNextProcess}, #{freeDeviceId}, #{createdAt}, #{updatedAt},
-                        #{checkAisle}, #{bindDDJ})
+                        #{checkAisle})
                 END
                 SELECT <include refid="base_field"/> FROM subtasks WITH (HOLDLOCK)
                 WHERE task_id = #{taskId} AND subtask_def_id = #{subtaskDefId}
@@ -224,11 +224,11 @@
                 INSERT INTO subtasks (task_id, subtask_def_id, name, priority, status,
                                       warehouse_id, created_at, updated_at, workflow_def_id, area,
                                       current_instruction_index, activity_instance_id, selected_device_id, is_start_next_process, free_device_id,
-                                      check_aisle, bind_ddj)
+                                      check_aisle)
                 SELECT #{taskId}, #{subtaskDefId}, #{name}, #{priority}, #{status},
                        #{warehouseId}, #{createdAt}, #{updatedAt}, #{workflowDefId}, #{area},
                        #{currentInstructionIndex}, #{activityInstanceId}, #{selectedDeviceId}, #{isStartNextProcess}, #{freeDeviceId},
-                       #{checkAisle}, #{bindDDJ}
+                       #{checkAisle}
                 WHERE NOT EXISTS (
                 SELECT 1 FROM subtasks WHERE task_id = #{taskId} AND subtask_def_id = #{subtaskDefId}
                 )

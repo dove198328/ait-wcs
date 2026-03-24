@@ -25,6 +25,10 @@ public class Instruction {
     @ApiModelProperty("主键")
     private Long id;
 
+    @TableField("warehouse_id")
+    @ApiModelProperty("仓库ID")
+    private Long warehouseId;
+
     @TableField("subtask_id")
     @ApiModelProperty("子任务ID")
     @NotNull(message = "子任务ID不能为空")

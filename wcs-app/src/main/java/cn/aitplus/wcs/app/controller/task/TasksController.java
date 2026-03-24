@@ -5,24 +5,19 @@ import cn.aitplus.wcs.common.domain.page.PageUtils;
 import cn.aitplus.wcs.common.domain.page.TableDataInfo;
 import cn.aitplus.wcs.core.domain.model.Task;
 import cn.aitplus.wcs.infra.service.task.TasksService;
-import cn.hutool.json.JSONObject;
 import com.baomidou.mybatisplus.core.metadata.IPage;
 import com.baomidou.mybatisplus.extension.plugins.pagination.Page;
 import io.swagger.annotations.Api;
+import io.swagger.annotations.ApiImplicitParam;
 import io.swagger.annotations.ApiOperation;
 import io.swagger.annotations.ApiParam;
-import org.springframework.web.bind.annotation.GetMapping;
-import org.springframework.web.bind.annotation.PathVariable;
-import org.springframework.web.bind.annotation.PostMapping;
-import org.springframework.web.bind.annotation.RequestBody;
-import org.springframework.web.bind.annotation.RequestMapping;
-import org.springframework.web.bind.annotation.RequestParam;
-import org.springframework.web.bind.annotation.RestController;
+import org.springframework.web.bind.annotation.*;
 
 import java.util.List;
 
-@RestController
+
 @Api(tags = "任务管理")
+@RestController
 @RequestMapping("/api/{wareHouseId}/tasks")
 public class TasksController {
 
@@ -32,7 +27,7 @@ public class TasksController {
         this.tasksService = tasksService;
     }
 
-    @ApiOperation("查询任务列表")
+    @ApiOperation("分页查询任务列表")
     @PostMapping("/search")
     public AjaxResult<TableDataInfo<Task>> queryList(@ApiParam("仓库ID") @PathVariable("wareHouseId") Long wareHouseId,
                                                      @ApiParam("页码") @RequestParam(value = "pageNum", required = false) Integer pageNum,
@@ -50,24 +45,58 @@ public class TasksController {
         return AjaxResult.success(TableDataInfo.build(tasksService.queryList(wareHouseId, query)));
     }
 
-    @ApiOperation("根据ID查询任务")
+    @ApiOperation("根据主键查询单条数据")
     @GetMapping("/{id}")
     public AjaxResult<Task> queryById(@ApiParam("仓库ID") @PathVariable("wareHouseId") Long wareHouseId,
                                       @ApiParam("任务ID") @PathVariable("id") Long id) {
         return AjaxResult.success(tasksService.queryById(wareHouseId, id));
     }
 
-    @ApiOperation("批量新增任务")
-    @PostMapping("/batch")
-    public AjaxResult<List<Long>> insertBatch(@ApiParam("仓库ID") @PathVariable("wareHouseId") Long wareHouseId,
-                                              @RequestBody List<Task> tasks) {
-        tasks.forEach(task -> task.setWarehouseId(wareHouseId));
-        return AjaxResult.success(tasksService.insertBatch(tasks));
+    @ApiOperation("新增任务")
+    @ApiImplicitParam(name = "task", value = "完整任务（包含子任务列表）", required = true, dataType = "Task",paramType = "body")
+    @PostMapping("/complete")
+    public AjaxResult insertBatchTask(@ApiParam("仓库ID") @PathVariable("wareHouseId") Long wareHouseId,
+                                         @RequestBody Task task) {
+        if (wareHouseId == null ||task == null) {
+            return AjaxResult.error("参数错误");
+        }
+        return AjaxResult.success("成功创建任务", tasksService.insertBatchTask(wareHouseId, task)
+        );
     }
 
-    @ApiOperation("查询任务统计")
-    @GetMapping("/statistics")
-    public AjaxResult<JSONObject> queryTaskStatistics(@ApiParam("仓库ID") @PathVariable("wareHouseId") Long wareHouseId) {
-        return AjaxResult.success(tasksService.queryTaskStatistics(wareHouseId));
+    @ApiOperation("批量新增任务")
+    @PostMapping("/batch")
+    public AjaxResult<List<Long>> insertBatchTasks(@ApiParam("仓库ID") @PathVariable("wareHouseId") Long wareHouseId,
+                                                           @RequestBody List<Task> tasks) {
+        if (tasks == null || tasks.isEmpty()) {
+            return AjaxResult.error("任务列表不能为空");
+        }
+        this.tasksService.insertBatchTasks(wareHouseId,tasks);
+        return AjaxResult.success("成功创建 " + tasks.size() + " 条任务");
+    }
+
+    @ApiOperation("修改数据")
+    @PutMapping("/{id}")
+    public AjaxResult update(@ApiParam("仓库ID") @PathVariable("wareHouseId") Long wareHouseId,
+                             @ApiParam("任务ID") @PathVariable("id") Long id,
+                             @RequestBody Task task) {
+        if (id == null || task == null) {
+            return AjaxResult.error("参数错误");
+        }
+        System.out.println("wareHouseId=" + wareHouseId);
+        System.out.println("id=" + id);
+        System.out.println("task=" + task);
+        return AjaxResult.toAjax(tasksService.updateById(wareHouseId, id, task));
+    }
+
+    @ApiOperation("删除数据")
+    @ApiImplicitParam(name = "id", value = "主键", required = true, dataType = "Long",paramType = "path")
+    @DeleteMapping("{id}")
+    public AjaxResult deleteById(@ApiParam("仓库ID") @PathVariable("wareHouseId") Long wareHouseId,
+                                 @ApiParam("任务ID") @PathVariable("id") Long id) {
+        if (id == null) {
+            return AjaxResult.error("参数错误");
+        }
+        return AjaxResult.toAjax(this.tasksService.deleteById(wareHouseId,id));
     }
 }

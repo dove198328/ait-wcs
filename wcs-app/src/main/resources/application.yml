@@ -5,7 +5,7 @@ spring:
     pathmatch:
       matching-strategy: ant_path_matcher
   profiles:
-    active: postgresql
+    active: test
 
 # 开发环境配置
 server:

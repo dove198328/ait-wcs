@@ -9,6 +9,7 @@ import lombok.Data;
 import lombok.NoArgsConstructor;
 
 import java.util.Date;
+import java.util.List;
 
 /**
  * 子任务实体类
@@ -88,6 +89,10 @@ public class SubTask {
     @TableField("area")
     @ApiModelProperty("区域")
     private String area;
+
+    @TableField(exist = false)
+    @ApiModelProperty("指令列表")
+    private List<Instruction> instructions;
 
     @TableField("workflow_def_id")
     @ApiModelProperty("流程定义ID")

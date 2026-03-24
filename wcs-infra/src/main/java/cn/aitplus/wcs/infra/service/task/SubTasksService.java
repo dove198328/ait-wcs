@@ -11,7 +11,7 @@ public interface SubTasksService {
 
     List<SubTask> queryList(Long wareHouseId, SubTask subtasks);
 
-    List<Long> insertBatch(List<SubTask> subtasks);
+    void insertBatch(List<SubTask> subtasks);
 
     int batchUpdateStatus(String subtaskIds, String status);
 
@@ -22,4 +22,6 @@ public interface SubTasksService {
     SubTask queryById(Long wareHouseId, Long subtaskIds);
 
     SubTask queryNoCompletedByTaskId(Long wareHouseId, Long taskId);
+
+    int deleteByTaskId(Long warehouseId, Long taskId);
 }

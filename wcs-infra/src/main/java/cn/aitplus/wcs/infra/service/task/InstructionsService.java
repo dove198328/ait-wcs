@@ -12,4 +12,6 @@ public interface InstructionsService {
     List<Instruction> queryList(Long wareHouseId, Instruction instructions);
 
     void insertBatch(List<Instruction> collect);
+
+    int deleteByTaskId(Long warehouseId, Long taskId);
 }

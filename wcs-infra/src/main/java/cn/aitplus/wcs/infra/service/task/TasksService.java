@@ -53,4 +53,14 @@ public interface TasksService {
      * 统计上述条件下处于「活跃」状态的任务数（pending/executing/suspended）。
      */
     long countActiveTasksByWarehouseAndWorkflowDefId(Long warehouseId, String workflowDefId);
+
+    int updateById(Long wareHouseId, Long id, Task task);
+
+    int deleteById(Long warehouseId, Long id);
+
+    Long insertBatchTask(Long wareHouseId, Task task);
+
+    int insertBatchTasks(Long wareHouseId, List<Task> tasks);
+
+
 }
