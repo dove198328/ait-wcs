@@ -6,6 +6,19 @@ spring:
       matching-strategy: ant_path_matcher
   profiles:
     active: postgresql
+  # 与 application-test 中实际环境一致；JetCache 远端 uri 引用下列属性
+  redis:
+    host: ${REDIS_HOST:192.168.1.45}
+    port: ${REDIS_PORT:6379}
+    password: ${REDIS_PASSWORD:123456}
+    database: ${REDIS_DATABASE:15}
+    timeout: 5000ms
+    lettuce:
+      pool:
+        max-active: 16
+        max-idle: 8
+        min-idle: 2
+        max-wait: 5000ms
 
 # 开发环境配置
 server:
@@ -88,7 +101,7 @@ camunda:
       enabled: false
       db-reporter-activate: false
 
-# JetCache 二级缓存配置
+# JetCache 二级缓存配置（远端 Redis 与 spring.redis 同一实例/库）
 jetcache:
   statIntervalMinutes: 15
   areaInCacheName: false
@@ -105,8 +118,8 @@ jetcache:
       broadcastChannel: wcs-cache-invalidate
       valueEncoder: java
       valueDecoder: java
-      # 推荐通过环境变量 REDIS_URI 提供；如果密码包含特殊字符，需要先做 URL 编码
-      uri: redis://:123456@192.168.1.45:6379
+      # 密码含 @ # 等字符时需 URL 编码；亦可整体用环境变量覆盖为单一 REDIS_URI（须与 database 一致）
+      uri: redis://:${spring.redis.password}@${spring.redis.host}:${spring.redis.port}/${spring.redis.database}
 
 
 
