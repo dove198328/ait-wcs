@@ -26,7 +26,7 @@ import java.nio.charset.StandardCharsets;
  * 生产请改为调用 {@code TasksService} 等与 REST 相同的应用服务，并在文档中固定 topic 与 JSON schema。
  */
 @Component
-@Conditional(WmsMqttInboundExampleEnabledCondition.class)
+@Conditional(WmsMqttInboundEnabledCondition.class)
 public class WmsMqttInboundExampleHandler {
 
     private static final Logger log = LoggerFactory.getLogger(WmsMqttInboundExampleHandler.class);

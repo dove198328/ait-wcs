@@ -7,7 +7,7 @@ import org.springframework.core.type.AnnotatedTypeMetadata;
 /**
  * {@code mqtt.enabled} 非 false，且 {@code mqtt.wms-inbound-enabled=true} 时启用 WMS 入站示例。
  */
-public class WmsMqttInboundExampleEnabledCondition implements Condition {
+public class WmsMqttInboundEnabledCondition implements Condition {
 
     @Override
     public boolean matches(ConditionContext context, AnnotatedTypeMetadata metadata) {
