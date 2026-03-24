@@ -10,6 +10,7 @@ import lombok.NoArgsConstructor;
 
 import javax.validation.constraints.NotEmpty;
 import javax.validation.constraints.NotNull;
+import java.io.Serializable;
 import java.time.LocalDateTime;
 import java.util.List;
 
@@ -19,7 +20,8 @@ import java.util.List;
 @AllArgsConstructor
 @NoArgsConstructor
 @ApiModel("指令实体")
-public class Instruction {
+public class Instruction implements Serializable {
+    private static final long serialVersionUID = -1029113567011031756L;
 
     @TableId(value = "id", type = IdType.AUTO)
     @ApiModelProperty("主键")

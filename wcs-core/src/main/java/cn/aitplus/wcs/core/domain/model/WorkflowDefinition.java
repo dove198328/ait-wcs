@@ -11,6 +11,7 @@ import lombok.Data;
 import lombok.NoArgsConstructor;
 
 import javax.validation.constraints.NotEmpty;
+import java.io.Serializable;
 import java.time.LocalDateTime;
 import java.util.List;
 
@@ -20,7 +21,9 @@ import java.util.List;
 @Builder
 @AllArgsConstructor
 @NoArgsConstructor
-public class WorkflowDefinition {
+public class WorkflowDefinition implements Serializable {
+    private static final long serialVersionUID = -332236500375559151L;
+
     @TableId(value = "id", type = IdType.AUTO)
     private Long id;
 

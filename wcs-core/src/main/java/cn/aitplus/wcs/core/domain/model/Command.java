@@ -7,6 +7,8 @@ import lombok.Builder;
 import lombok.Data;
 import lombok.NoArgsConstructor;
 
+import java.io.Serializable;
+
 /**
  * 指令命令项。
  */
@@ -15,7 +17,8 @@ import lombok.NoArgsConstructor;
 @AllArgsConstructor
 @Builder
 @ApiModel("指令命令项")
-public class Command {
+public class Command implements Serializable {
+    private static final long serialVersionUID = -704686100311407963L;
 
     @ApiModelProperty("命令名称")
     private String command;

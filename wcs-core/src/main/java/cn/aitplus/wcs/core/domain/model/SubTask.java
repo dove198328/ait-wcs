@@ -8,6 +8,7 @@ import lombok.Builder;
 import lombok.Data;
 import lombok.NoArgsConstructor;
 
+import java.io.Serializable;
 import java.util.Date;
 import java.util.List;
 
@@ -21,7 +22,9 @@ import java.util.List;
 @AllArgsConstructor
 @NoArgsConstructor
 @ApiModel("子任务实体")
-public class SubTask {
+public class SubTask implements Serializable {
+    private static final long serialVersionUID = -1345487262126114290L;
+
     @TableId(value = "id", type = IdType.AUTO)
     @ApiModelProperty("主键")
     private Long id;
