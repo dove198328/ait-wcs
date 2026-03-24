@@ -36,3 +36,34 @@ camunda:
     database:
       type: postgres
       jdbc-batch-processing: false
+
+# MQTT配置
+mqtt:
+  # 关闭整套 MQTT 自动配置时设为 false
+  # enabled: true
+  # WMS（B）入站：与设备 topic 隔离；开启时必须配置 wms-inbound-topics
+  wms-inbound-enabled: false
+  wms-inbound-topics: ""
+  # 设备（A）入站；topic 留空时回落到下面的 default.topic
+  device-inbound-enabled: true
+  # device-inbound-topics: ""
+  # 出站默认主题（不配则取 default.topic 逗号分隔的第一段）
+  # publish-default-topic: wcs/command/default
+  # MQTT代理服务器地址
+  broker: tcp://192.168.1.120:1883
+  # 客户端ID前缀
+  clientId: wcs-mqtt-client-${wcs.workflow.allowedWarehouseIds[0]}
+  # 用户名（如果需要认证）
+  username: aitplus
+  # 密码（如果需要认证）
+  password: aitplus@123
+  # 默认主题
+  default:
+    topic: wcs/command/default,led/program
+  # 完成超时时间（毫秒）
+  completion:
+    timeout: 30000
+  sendTopic:
+    alarm: device/alarms
+    # 状态主题
+    status: device/status

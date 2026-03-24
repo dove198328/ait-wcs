@@ -107,3 +107,7 @@ jetcache:
       valueDecoder: java
       # 推荐通过环境变量 REDIS_URI 提供；如果密码包含特殊字符，需要先做 URL 编码
       uri: redis://:123456@192.168.1.45:6379
+
+
+
+
