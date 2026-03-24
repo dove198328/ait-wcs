@@ -1,8 +1,6 @@
 package cn.aitplus.wcs.app.config;
 
 import org.eclipse.paho.client.mqttv3.MqttConnectOptions;
-import org.slf4j.Logger;
-import org.slf4j.LoggerFactory;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.boot.autoconfigure.condition.ConditionalOnProperty;
 import org.springframework.boot.context.properties.EnableConfigurationProperties;
@@ -35,8 +33,6 @@ import java.util.Arrays;
 @EnableConfigurationProperties(MqttProperties.class)
 @ConditionalOnProperty(prefix = "mqtt", name = "enabled", havingValue = "true", matchIfMissing = true)
 public class MqttConfig {
-
-    private static final Logger log = LoggerFactory.getLogger(MqttConfig.class);
 
     @Bean
     public MqttPahoClientFactory mqttClientFactory(MqttProperties props) {
@@ -102,22 +98,6 @@ public class MqttConfig {
     @Bean
     public MessageChannel mqttDeviceInboundChannel() {
         return new DirectChannel();
-    }
-
-    @Bean
-    @ServiceActivator(inputChannel = "mqttWmsInboundChannel")
-    public MessageHandler wmsMqttInboundLogger() {
-        return message -> log.info("[MQTT WMS] topic={} payload={}",
-            message.getHeaders().get(org.springframework.integration.mqtt.support.MqttHeaders.RECEIVED_TOPIC),
-            message.getPayload());
-    }
-
-    @Bean
-    @ServiceActivator(inputChannel = "mqttDeviceInboundChannel")
-    public MessageHandler deviceMqttInboundLogger() {
-        return message -> log.info("[MQTT device] topic={} payload={}",
-            message.getHeaders().get(org.springframework.integration.mqtt.support.MqttHeaders.RECEIVED_TOPIC),
-            message.getPayload());
     }
 
     @Configuration(proxyBeanMethods = false)
