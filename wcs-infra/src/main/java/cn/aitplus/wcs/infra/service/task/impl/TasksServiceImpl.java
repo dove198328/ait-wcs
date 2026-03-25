@@ -3,9 +3,11 @@ package cn.aitplus.wcs.infra.service.task.impl;
 import cn.aitplus.wcs.core.domain.enums.InstructionStatus;
 import cn.aitplus.wcs.core.domain.enums.TaskStatus;
 import cn.aitplus.wcs.core.domain.model.*;
-import cn.aitplus.wcs.infra.persistence.task.SubTasksMapper;
+import cn.aitplus.wcs.infra.persistence.task.WorkflowDefinitionsMapper;
+import cn.aitplus.wcs.infra.service.device.DeviceConfigService;
 import cn.aitplus.wcs.infra.service.task.SubTasksService;
 import cn.hutool.core.collection.CollUtil;
+import cn.hutool.core.util.StrUtil;
 import com.baomidou.mybatisplus.core.conditions.query.LambdaQueryWrapper;
 import com.baomidou.mybatisplus.core.metadata.IPage;
 import cn.hutool.json.JSONObject;
@@ -14,7 +16,10 @@ import cn.aitplus.wcs.infra.service.task.TasksService;
 import com.baomidou.mybatisplus.core.toolkit.Wrappers;
 import com.google.common.collect.Lists;
 import lombok.extern.slf4j.Slf4j;
-import org.springframework.beans.factory.annotation.Autowired;
+import org.camunda.bpm.engine.RepositoryService;
+import org.camunda.bpm.model.bpmn.BpmnModelInstance;
+import org.camunda.bpm.model.bpmn.instance.SequenceFlow;
+import org.camunda.bpm.model.bpmn.instance.StartEvent;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
@@ -35,8 +40,15 @@ public class TasksServiceImpl implements TasksService {
 
     @Resource
     private SubTasksService subtasksService;
-    @Autowired
-    private SubTasksMapper subTasksMapper;
+
+    @Resource
+    private DeviceConfigService deviceConfigService;
+
+    @Resource
+    private RepositoryService repositoryService;
+
+    @Resource
+    private WorkflowDefinitionsMapper workflowDefinitionsMapper;
 
     public TasksServiceImpl(TasksMapper tasksMapper) {
         this.tasksMapper = tasksMapper;
@@ -148,6 +160,8 @@ public class TasksServiceImpl implements TasksService {
     @Override
     @Transactional(propagation = NOT_SUPPORTED)
     public Long insertBatchTask(Long warehouseId, Task task) {
+        task.setWarehouseId(warehouseId);
+        // 插入task表
         task = insertCompleteTask(task);
         return task.getId();
     }
@@ -156,9 +170,6 @@ public class TasksServiceImpl implements TasksService {
     @Transactional(rollbackFor = Exception.class)
     public int insertBatchTasks(Long wareHouseId, List<Task> tasks) {
         try {
-            if (tasks == null || tasks.isEmpty()) {
-                return 0;
-            }
             List<Long> allTaskIds = insertBatchCompleteTask(wareHouseId, tasks);
             if (CollUtil.isEmpty(allTaskIds)) {
                 return 0;
@@ -170,17 +181,42 @@ public class TasksServiceImpl implements TasksService {
         }
     }
 
+    private String parseDepth(String location) {
+        if (StrUtil.isBlank(location) || location.length() < 2) {
+            return "SINGLE";
+        }
+        String suffix = location.substring(location.length() - 2).toUpperCase();
+        switch (suffix) {
+            case "-F":
+                return "FRONT";
+            case "-B":
+                return "BACK";
+            default:
+                return "SINGLE";
+        }
+    }
+
     public Task insertCompleteTask(Task task) {
+        // 如果未显示提供depth，根据location自动推导
+        if (task.getDepth() == null) {
+            task.setDepth(parseDepth(task.getLocation()));
+        }
+        // 根据仓库ID和流程定义ID查询设备流程
+        TaskDefinition deviceProcess = deviceConfigService.getDeviceProcess(task.getWarehouseId(), task.getWorkflowDefId());
+        WorkflowDefinition workflowDefinition = workflowDefinitionsMapper.queryByWorkflowId(task.getWarehouseId(),task.getWorkflowDefId());
+        task.setIsAutoStart(workflowDefinition.getIsAutoStart());
+        task.setProcessDefinitionId(workflowDefinition.getProcessDefId());
+        task.setWorkDirection(deviceProcess.getWorkDirection());
+        // 插入主任务
         tasksMapper.insert(task);
-        completeSubTasks(task,null);
+        completeSubTasks(task,deviceProcess.getSubtasks());
+        // 插入子任务
         subtasksService.insertBatch(task.getSubtasks());
         return task;
     }
 
     public List<Long> insertBatchCompleteTask(Long wareHouseId, List<Task> tasks) {
-        if (wareHouseId == null) {
-            return null;
-        }
+        // tasks 创建分组
         if (tasks == null || tasks.isEmpty()) {
             return null;
         }
@@ -193,7 +229,8 @@ public class TasksServiceImpl implements TasksService {
         for (int i = 0; i < tasks.size(); i++) {
             Task task = tasks.get(i);
             task.setId(allTaskIds.get(i));
-            completeSubTasks(task, null);
+            TaskDefinition deviceProcess = deviceConfigService.getDeviceProcess(wareHouseId, task.getWorkflowDefId());
+            completeSubTasks(task, deviceProcess.getSubtasks());
         }
         List<SubTask> subtasks = tasks.stream()
                 .flatMap(x -> x.getSubtasks().stream())
@@ -208,11 +245,19 @@ public class TasksServiceImpl implements TasksService {
     }
 
     private void completeSubTasks(Task task, List<SubtaskDefinition> subtaskDefList){
-
         if (subtaskDefList == null || subtaskDefList.isEmpty()) {
             return;
         }
-        SubtaskDefinition firstDef = subtaskDefList.get(0);
+        // 获取开始节点后第一个子任务，并匹配子任务定义
+        BpmnModelInstance model = repositoryService.getBpmnModelInstance(task.getProcessDefinitionId());
+        String firstSubtaskDefId = getFirstSubtaskDefIdByModel(model);
+        // 仅构建首个任务，剩余子任务在运行时动态实例化
+        Optional<SubtaskDefinition> firstDefOption = subtaskDefList.stream().filter(x -> x.getSubtaskDefId().equals(firstSubtaskDefId)).findFirst();
+        if (firstDefOption.isEmpty()) {
+            throw new RuntimeException("未找到流程定义的第一个子任务定义，子任务定义ID为" + firstSubtaskDefId);
+        }
+
+        SubtaskDefinition firstDef = firstDefOption.get();
         SubTask subtask = SubTask.builder()
                 .taskId(task.getId())
                 .subtaskDefId(firstDef.getSubtaskDefId())
@@ -229,7 +274,7 @@ public class TasksServiceImpl implements TasksService {
                 .createdAt(new Date())
                 .updatedAt(new Date())
                 .build();
-
+        // 构建指令列表（仅首个任务）
         List<Instruction> instructions = new ArrayList<>();
         firstDef.getInstructions().forEach(instructionDef -> {
             Instruction instruction = Instruction.builder()
@@ -250,6 +295,27 @@ public class TasksServiceImpl implements TasksService {
         subtask.setInstructions(instructions);
 
         task.setSubtasks(java.util.Collections.singletonList(subtask));
+    }
+
+    /**
+     * 从 BPMN 模型里找到 StartEvent outgoing 的第一个 SequenceFlow target，
+     * 并返回其 target 节点 id（对应子任务定义 id）。
+     */
+    private String getFirstSubtaskDefIdByModel(BpmnModelInstance model) {
+        Iterator<StartEvent> startIt = model.getModelElementsByType(StartEvent.class).iterator();
+        if (!startIt.hasNext()) {
+            throw new IllegalStateException("BPMN 模型未找到 StartEvent");
+        }
+        StartEvent startEvent = startIt.next();
+
+        Iterator<SequenceFlow> flowIt = model.getModelElementsByType(SequenceFlow.class).iterator();
+        while (flowIt.hasNext()) {
+            SequenceFlow sequenceFlow = flowIt.next();
+            if (sequenceFlow.getSource().equals(startEvent)) {
+                return sequenceFlow.getTarget().getId();
+            }
+        }
+        throw new IllegalStateException("StartEvent 到第一个子任务定义的连线未找到");
     }
 
     @Override

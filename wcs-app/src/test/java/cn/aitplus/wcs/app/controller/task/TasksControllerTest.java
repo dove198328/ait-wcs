@@ -56,7 +56,7 @@ public class TasksControllerTest {
     void create() {
         String url = "/api/" + wareHouseId + "/tasks/complete";
         Task task = new Task();
-        task.setWorkflowDefId("test1");
+        task.setWorkflowDefId("workflow_1758110275067_2579");
         task.setTaskName("RK1");
         task.setCreatedAt(LocalDateTime.now());
         task.setUpdatedAt(LocalDateTime.now());
