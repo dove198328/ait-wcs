@@ -49,4 +49,25 @@ public final class DomainEnums {
         PLAN,
         STEP
     }
+
+    public enum DepthType {
+        SINGLE,
+        FRONT,
+        BACK;
+
+        public static DepthType parseFromLocation(String location) {
+            if (location == null || location.length() < 2) {
+                return SINGLE;
+            }
+            String suffix = location.substring(location.length() - 2).toUpperCase();
+            switch (suffix) {
+                case "-F":
+                    return FRONT;
+                case "-B":
+                    return BACK;
+                default:
+                    return SINGLE;
+            }
+        }
+    }
 }

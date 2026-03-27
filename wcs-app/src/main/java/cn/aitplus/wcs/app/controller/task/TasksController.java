@@ -55,19 +55,19 @@ public class TasksController {
     @ApiOperation("新增任务")
     @ApiImplicitParam(name = "task", value = "完整任务（包含子任务列表）", required = true, dataType = "Task",paramType = "body")
     @PostMapping("/complete")
-    public AjaxResult insertBatchTask(@ApiParam("仓库ID") @PathVariable("wareHouseId") Long wareHouseId,
-                                         @RequestBody Task task) {
+    public AjaxResult insertTask(@ApiParam("仓库ID") @PathVariable("wareHouseId") Long wareHouseId,
+                                           @RequestBody Task task) {
         if (wareHouseId == null ||task == null) {
             return AjaxResult.error("参数错误");
         }
-        return AjaxResult.success("成功创建任务", tasksService.insertBatchTask(wareHouseId, task)
+        return AjaxResult.success("成功创建任务", tasksService.insertTask(wareHouseId, task)
         );
     }
 
     @ApiOperation("批量新增任务")
     @PostMapping("/batch")
     public AjaxResult<List<Long>> insertBatchTasks(@ApiParam("仓库ID") @PathVariable("wareHouseId") Long wareHouseId,
-                                                           @RequestBody List<Task> tasks) {
+                                                         @RequestBody List<Task> tasks) {
         if (tasks == null || tasks.isEmpty()) {
             return AjaxResult.error("任务列表不能为空");
         }
@@ -83,9 +83,6 @@ public class TasksController {
         if (id == null || task == null) {
             return AjaxResult.error("参数错误");
         }
-        System.out.println("wareHouseId=" + wareHouseId);
-        System.out.println("id=" + id);
-        System.out.println("task=" + task);
         return AjaxResult.toAjax(tasksService.updateById(wareHouseId, id, task));
     }
 

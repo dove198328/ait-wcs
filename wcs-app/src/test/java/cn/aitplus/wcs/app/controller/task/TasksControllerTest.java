@@ -1,7 +1,5 @@
 package cn.aitplus.wcs.app.controller.task;
 
-import cn.aitplus.wcs.core.domain.model.Instruction;
-import cn.aitplus.wcs.core.domain.model.SubTask;
 import cn.aitplus.wcs.core.domain.model.Task;
 import org.junit.jupiter.api.*;
 import org.springframework.beans.factory.annotation.Autowired;
@@ -76,14 +74,14 @@ public class TasksControllerTest {
     void batchCreate() {
         String url = "/api/" + wareHouseId + "/tasks/batch";
         Task task = new Task();
-        task.setWorkflowDefId("test1");
+        task.setWorkflowDefId("workflow_1758110275067_2579");
         task.setTaskName("RK1");
         task.setCreatedAt(LocalDateTime.now());
         task.setUpdatedAt(LocalDateTime.now());
 
         Task task1 = new Task();
-        task1.setWorkflowDefId("test2");
-        task1.setTaskName("RK2");
+        task1.setWorkflowDefId("workflow_1758110275067_2579");
+        task1.setTaskName("RK1");
         task1.setCreatedAt(LocalDateTime.now());
         task1.setUpdatedAt(LocalDateTime.now());
 

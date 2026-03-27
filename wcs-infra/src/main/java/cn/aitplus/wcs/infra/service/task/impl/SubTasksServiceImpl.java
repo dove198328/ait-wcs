@@ -10,10 +10,10 @@ import cn.aitplus.wcs.infra.service.task.SubTasksService;
 import com.baomidou.mybatisplus.core.toolkit.Wrappers;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.stereotype.Service;
-import org.springframework.transaction.annotation.Propagation;
 import org.springframework.transaction.annotation.Transactional;
 
 import javax.annotation.Resource;
+import java.time.LocalDateTime;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.Map;
@@ -45,29 +45,23 @@ public class SubTasksServiceImpl implements SubTasksService {
     }
 
     @Override
-    @Transactional(propagation = Propagation.NOT_SUPPORTED)
     public void insertBatch(List<SubTask> subtasks) {
-
         Map<String, List<SubTask>> collect = subtasks.stream()
                 .collect(Collectors.groupingBy(x -> x.getTaskId() + "_" + x.getSubtaskDefId()));
-
         for (Map.Entry<String, List<SubTask>> entry : collect.entrySet()) {
-
                 List<SubTask> subtasksForInsert = entry.getValue();
-
                 // 1. 批量插入 SubTask
                 List<Long> batchIds = subTasksMapper.insertbatch(subtasksForInsert);
-
                 for (int i = 0; i < subtasksForInsert.size(); i++) {
                     subtasksForInsert.get(i).setId(batchIds.get(i));
                 }
-
                 // 2. 收集所有 Instruction
                 List<Instruction> allInstructions = new ArrayList<>();
                 for (SubTask subtask : subtasksForInsert) {
                     if (subtask.getInstructions() != null) {
                         for (Instruction instruction : subtask.getInstructions()) {
                             instruction.setSubtaskId(subtask.getId());
+                            instruction.setUpdatedAt(LocalDateTime.now());
                             allInstructions.add(instruction);
                         }
                     }

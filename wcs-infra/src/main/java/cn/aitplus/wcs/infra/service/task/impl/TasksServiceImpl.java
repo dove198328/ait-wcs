@@ -1,13 +1,13 @@
 package cn.aitplus.wcs.infra.service.task.impl;
 
+import cn.aitplus.wcs.core.domain.enums.DomainEnums;
 import cn.aitplus.wcs.core.domain.enums.InstructionStatus;
 import cn.aitplus.wcs.core.domain.enums.TaskStatus;
 import cn.aitplus.wcs.core.domain.model.*;
-import cn.aitplus.wcs.infra.persistence.task.WorkflowDefinitionsMapper;
-import cn.aitplus.wcs.infra.service.device.DeviceConfigService;
 import cn.aitplus.wcs.infra.service.task.SubTasksService;
+import cn.aitplus.wcs.infra.service.task.WorkflowDefinitionsService;
 import cn.hutool.core.collection.CollUtil;
-import cn.hutool.core.util.StrUtil;
+import com.alibaba.fastjson2.JSON;
 import com.baomidou.mybatisplus.core.conditions.query.LambdaQueryWrapper;
 import com.baomidou.mybatisplus.core.metadata.IPage;
 import cn.hutool.json.JSONObject;
@@ -16,10 +16,6 @@ import cn.aitplus.wcs.infra.service.task.TasksService;
 import com.baomidou.mybatisplus.core.toolkit.Wrappers;
 import com.google.common.collect.Lists;
 import lombok.extern.slf4j.Slf4j;
-import org.camunda.bpm.engine.RepositoryService;
-import org.camunda.bpm.model.bpmn.BpmnModelInstance;
-import org.camunda.bpm.model.bpmn.instance.SequenceFlow;
-import org.camunda.bpm.model.bpmn.instance.StartEvent;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
@@ -42,13 +38,7 @@ public class TasksServiceImpl implements TasksService {
     private SubTasksService subtasksService;
 
     @Resource
-    private DeviceConfigService deviceConfigService;
-
-    @Resource
-    private RepositoryService repositoryService;
-
-    @Resource
-    private WorkflowDefinitionsMapper workflowDefinitionsMapper;
+    private WorkflowDefinitionsService workflowDefinitionsService;
 
     public TasksServiceImpl(TasksMapper tasksMapper) {
         this.tasksMapper = tasksMapper;
@@ -159,10 +149,10 @@ public class TasksServiceImpl implements TasksService {
 
     @Override
     @Transactional(propagation = NOT_SUPPORTED)
-    public Long insertBatchTask(Long warehouseId, Task task) {
+    public Long insertTask(Long warehouseId, Task task) {
         task.setWarehouseId(warehouseId);
         // 插入task表
-        task = insertCompleteTask(task);
+        task = insertTaskWithSubtasks(task);
         return task.getId();
     }
 
@@ -170,7 +160,10 @@ public class TasksServiceImpl implements TasksService {
     @Transactional(rollbackFor = Exception.class)
     public int insertBatchTasks(Long wareHouseId, List<Task> tasks) {
         try {
-            List<Long> allTaskIds = insertBatchCompleteTask(wareHouseId, tasks);
+            for (Task task : tasks) {
+                task.setWarehouseId(wareHouseId);
+            }
+            List<Long> allTaskIds = insertBatchTasksWithSubtasks(tasks);
             if (CollUtil.isEmpty(allTaskIds)) {
                 return 0;
             }
@@ -181,76 +174,92 @@ public class TasksServiceImpl implements TasksService {
         }
     }
 
-    private String parseDepth(String location) {
-        if (StrUtil.isBlank(location) || location.length() < 2) {
-            return "SINGLE";
-        }
-        String suffix = location.substring(location.length() - 2).toUpperCase();
-        switch (suffix) {
-            case "-F":
-                return "FRONT";
-            case "-B":
-                return "BACK";
-            default:
-                return "SINGLE";
-        }
-    }
-
-    public Task insertCompleteTask(Task task) {
-        // 如果未显示提供depth，根据location自动推导
+    public Task insertTaskWithSubtasks(Task task) {
+        // 如果未显式提供depth，根据location自动推导
         if (task.getDepth() == null) {
-            task.setDepth(parseDepth(task.getLocation()));
+            task.setDepth(DomainEnums.DepthType.parseFromLocation(task.getLocation()).name());
         }
         // 根据仓库ID和流程定义ID查询设备流程
-        TaskDefinition deviceProcess = deviceConfigService.getDeviceProcess(task.getWarehouseId(), task.getWorkflowDefId());
-        WorkflowDefinition workflowDefinition = workflowDefinitionsMapper.queryByWorkflowId(task.getWarehouseId(),task.getWorkflowDefId());
+        WorkflowDefinition workflowDefinition = workflowDefinitionsService.queryByWorkflowId(task.getWarehouseId(), task.getWorkflowDefId());
         task.setIsAutoStart(workflowDefinition.getIsAutoStart());
         task.setProcessDefinitionId(workflowDefinition.getProcessDefId());
-        task.setWorkDirection(deviceProcess.getWorkDirection());
+        task.setWorkDirection(workflowDefinition.getWorkDirection());
         // 插入主任务
         tasksMapper.insert(task);
-        completeSubTasks(task,deviceProcess.getSubtasks());
-        // 插入子任务
-        subtasksService.insertBatch(task.getSubtasks());
+        // 处理子任务
+        if (workflowDefinition.getSubtaskDefinitions() != null) {
+            // 手动转换解决缓存反序列化问题
+            List<SubtaskDefinition> subtasks = JSON.parseArray(
+                    JSON.toJSONString(workflowDefinition.getSubtaskDefinitions()),
+                    SubtaskDefinition.class
+            );
+            buildSubtasksFromDefinition(task, subtasks);
+            // 插入子任务
+            if (task.getSubtasks() != null && !task.getSubtasks().isEmpty()) {
+                subtasksService.insertBatch(task.getSubtasks());
+            }
+        }
         return task;
     }
 
-    public List<Long> insertBatchCompleteTask(Long wareHouseId, List<Task> tasks) {
-        // tasks 创建分组
+    public List<Long> insertBatchTasksWithSubtasks(List<Task> tasks) {
         if (tasks == null || tasks.isEmpty()) {
             return null;
         }
+        // 从 Redis 缓存获取流程定义
+        Set<String> workflowDefIds = tasks.stream().map(Task::getWorkflowDefId).collect(Collectors.toSet());
+        Map<String, WorkflowDefinition> workflowDefinitionMap = new HashMap<>();
+        for (String wfId : workflowDefIds) {
+            WorkflowDefinition workflowDefinition = workflowDefinitionsService.queryByWorkflowId(tasks.get(0).getWarehouseId(), wfId);
+            if (workflowDefinition != null) workflowDefinitionMap.put(wfId, workflowDefinition);
+        }
+
+        tasks.forEach(task -> {
+            if (task.getDepth() == null) {
+                task.setDepth(DomainEnums.DepthType.parseFromLocation(task.getLocation()).name());
+            }
+            WorkflowDefinition wf = workflowDefinitionMap.get(task.getWorkflowDefId());
+            if (wf != null) {
+                task.setIsAutoStart(wf.getIsAutoStart());
+                task.setProcessDefinitionId(wf.getProcessDefId());
+                task.setWorkDirection(wf.getWorkDirection());
+            }
+        });
+
         List<Long> allTaskIds = new ArrayList<>();
         List<List<Task>> taskPartitions = Lists.partition(tasks, 60);
-        for (List<Task> taskList : taskPartitions) {
-            List<Long> ids = tasksMapper.insertBatch(taskList);
-            allTaskIds.addAll(ids);
+        for (List<Task> tasksList : taskPartitions) {
+            List<Long> longs = tasksMapper.insertBatch(tasksList);
+            allTaskIds.addAll(longs);
         }
+
         for (int i = 0; i < tasks.size(); i++) {
             Task task = tasks.get(i);
             task.setId(allTaskIds.get(i));
-            TaskDefinition deviceProcess = deviceConfigService.getDeviceProcess(wareHouseId, task.getWorkflowDefId());
-            completeSubTasks(task, deviceProcess.getSubtasks());
+            WorkflowDefinition wf = workflowDefinitionMap.get(task.getWorkflowDefId());
+            if (wf != null && wf.getSubtaskDefinitions() != null) {
+                List<SubtaskDefinition> subtasks = JSON.parseArray(
+                        JSON.toJSONString(wf.getSubtaskDefinitions()),
+                        SubtaskDefinition.class);
+                buildSubtasksFromDefinition(task, subtasks);
+            }
         }
+
         List<SubTask> subtasks = tasks.stream()
                 .flatMap(x -> x.getSubtasks().stream())
                 .collect(Collectors.toList());
-
         List<List<SubTask>> partition = Lists.partition(subtasks, 100);
-
         for (List<SubTask> subtaskList : partition) {
             subtasksService.insertBatch(subtaskList);
         }
         return allTaskIds;
     }
 
-    private void completeSubTasks(Task task, List<SubtaskDefinition> subtaskDefList){
+    private void buildSubtasksFromDefinition(Task task, List<SubtaskDefinition> subtaskDefList){
         if (subtaskDefList == null || subtaskDefList.isEmpty()) {
             return;
         }
-        // 获取开始节点后第一个子任务，并匹配子任务定义
-        BpmnModelInstance model = repositoryService.getBpmnModelInstance(task.getProcessDefinitionId());
-        String firstSubtaskDefId = getFirstSubtaskDefIdByModel(model);
+        String firstSubtaskDefId = workflowDefinitionsService.getFirstSubDefString(task.getWarehouseId(), task.getWorkflowDefId());
         // 仅构建首个任务，剩余子任务在运行时动态实例化
         Optional<SubtaskDefinition> firstDefOption = subtaskDefList.stream().filter(x -> x.getSubtaskDefId().equals(firstSubtaskDefId)).findFirst();
         if (firstDefOption.isEmpty()) {
@@ -295,27 +304,6 @@ public class TasksServiceImpl implements TasksService {
         subtask.setInstructions(instructions);
 
         task.setSubtasks(java.util.Collections.singletonList(subtask));
-    }
-
-    /**
-     * 从 BPMN 模型里找到 StartEvent outgoing 的第一个 SequenceFlow target，
-     * 并返回其 target 节点 id（对应子任务定义 id）。
-     */
-    private String getFirstSubtaskDefIdByModel(BpmnModelInstance model) {
-        Iterator<StartEvent> startIt = model.getModelElementsByType(StartEvent.class).iterator();
-        if (!startIt.hasNext()) {
-            throw new IllegalStateException("BPMN 模型未找到 StartEvent");
-        }
-        StartEvent startEvent = startIt.next();
-
-        Iterator<SequenceFlow> flowIt = model.getModelElementsByType(SequenceFlow.class).iterator();
-        while (flowIt.hasNext()) {
-            SequenceFlow sequenceFlow = flowIt.next();
-            if (sequenceFlow.getSource().equals(startEvent)) {
-                return sequenceFlow.getTarget().getId();
-            }
-        }
-        throw new IllegalStateException("StartEvent 到第一个子任务定义的连线未找到");
     }
 
     @Override

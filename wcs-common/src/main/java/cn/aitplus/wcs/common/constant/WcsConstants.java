@@ -23,9 +23,6 @@ public final class WcsConstants {
     public static final String PROFILE_CACHE_NAME = "wcs:profile:";
     public static final String CHAIN_CACHE_NAME = "wcs:chain:";
 
-    /** Redis 设备工艺/流程 key 格式 device:process:{warehouseId}: */
-    public static final String DEVICE_PROCESS_KEY_FORMAT = "device:process:%s:";
-
     /** 缓存条目 key 中仓库维度与业务段之间的分隔符（与区域名里的冒号无关） */
     public static final String CACHE_KEY_SEPARATOR = ":";
 }

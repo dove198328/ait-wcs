@@ -58,7 +58,7 @@ public interface TasksService {
 
     int deleteById(Long warehouseId, Long id);
 
-    Long insertBatchTask(Long wareHouseId, Task task);
+    Long insertTask(Long wareHouseId, Task task);
 
     int insertBatchTasks(Long wareHouseId, List<Task> tasks);
 
