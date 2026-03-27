@@ -210,6 +210,7 @@ public class TasksServiceImpl implements TasksService {
         Set<String> workflowDefIds = tasks.stream().map(Task::getWorkflowDefId).collect(Collectors.toSet());
         Map<String, WorkflowDefinition> workflowDefinitionMap = new HashMap<>();
         for (String wfId : workflowDefIds) {
+            if (workflowDefinitionMap.containsKey(wfId)) continue;
             WorkflowDefinition workflowDefinition = workflowDefinitionsService.queryByWorkflowId(tasks.get(0).getWarehouseId(), wfId);
             if (workflowDefinition != null) workflowDefinitionMap.put(wfId, workflowDefinition);
         }
