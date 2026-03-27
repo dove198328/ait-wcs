@@ -45,6 +45,7 @@ wcs:
 
 camunda:
   bpm:
+    history-level: none
     authorization:
       enabled: false
     eventing:
@@ -70,7 +71,7 @@ camunda:
     generic-properties:
       properties:
         # 历史记录级别
-        history: activity
+        history: none
         historyCleanupBatchWindowStartTime: "00:00"
         historyCleanupBatchWindowEndTime: "01:00"
         historyCleanupStrategy: removalTimeBased
@@ -84,6 +85,8 @@ camunda:
         historyCleanupBatchSize: 200
         telemetryReporterActivate: false
         historyCleanupMetricsEnabled: false
+        # 见 https://github.com/camunda/camunda-bpm-platform/issues/2969 ：关闭「隐式变量更新检测」，
+        implicitVariableUpdateDetectionEnabled: false
     metrics:
       enabled: false
       db-reporter-activate: false
