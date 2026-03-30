@@ -1,0 +1,33 @@
+# wcs-adapters：与主应用 application.yml 自动合并（库内配置优先级低于 wcs-app）。
+# 仅放适配器侧默认参数；环境开关等在 wcs-app 中覆盖。
+wcs:
+  adapter:
+    s7:
+      enabled: true
+      default-request-timeout-millis: 5000
+      max-reconnect-attempts: 8
+      reconnect-initial-delay-millis: 500
+      reconnect-max-delay-millis: 30000
+      heartbeat-read-address: ""
+      borrow-probe-enabled: true
+      borrow-probe-timeout-millis: 3000
+      stale-check-interval-millis: 2000
+      stale-check-plc-heartbeat-write-address: ""
+    opcua:
+      enabled: true
+      max-nodes-per-service-call: 200
+      session-probe-enabled: true
+      session-probe-timeout-millis: 3000
+      idle-max-millis: 0
+      execute-read-enabled: false
+      execute-write-enabled: false
+      subscription-enabled: true
+      subscription-publishing-interval-millis: 1000
+      max-monitored-items-per-create-batch: 200
+      default-request-timeout-millis: 5000
+      application-name: "WCS OPC UA Client"
+      application-uri: "urn:aitplus:wcs:opcua-client"
+      security-policy: None
+      username: ""
+      password: ""
+      insecure-trust-server-certificate: true
