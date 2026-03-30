@@ -4,6 +4,8 @@ import cn.aitplus.wcs.core.domain.model.CommandExecution;
 import cn.aitplus.wcs.infra.persistence.execution.CommandExecutionMapper;
 import cn.aitplus.wcs.infra.service.execution.CommandExecutionService;
 import com.baomidou.mybatisplus.core.metadata.IPage;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 import org.springframework.dao.DuplicateKeyException;
 import org.springframework.stereotype.Service;
 
@@ -12,6 +14,8 @@ import java.util.List;
 
 @Service
 public class CommandExecutionServiceImpl implements CommandExecutionService {
+
+    private static final Logger log = LoggerFactory.getLogger(CommandExecutionServiceImpl.class);
 
     private final CommandExecutionMapper commandExecutionMapper;
 
@@ -57,6 +61,8 @@ public class CommandExecutionServiceImpl implements CommandExecutionService {
             commandExecutionMapper.insert(commandExecution);
             return commandExecution;
         } catch (DuplicateKeyException ex) {
+            log.debug("CommandExecution 幂等键并发插入，回查已有记录 warehouseId={} idempotencyKey={}",
+                wareHouseId, commandExecution.getIdempotencyKey(), ex);
             return commandExecutionMapper.queryByIdempotencyKey(wareHouseId, commandExecution.getIdempotencyKey());
         }
     }

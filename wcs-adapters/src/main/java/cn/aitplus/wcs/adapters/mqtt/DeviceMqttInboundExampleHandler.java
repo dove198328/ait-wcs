@@ -52,7 +52,7 @@ public class DeviceMqttInboundExampleHandler {
                 log.info("[MQTT device 示例/adapters] status={}", root.get("status").asText());
             }
         } catch (Exception e) {
-            log.debug("[MQTT device 示例/adapters] 非 JSON 或解析失败: {}", e.toString());
+            log.warn("[MQTT device 示例/adapters] 非 JSON 或解析失败, body={}", abbrev(body), e);
         }
     }
 

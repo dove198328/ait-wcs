@@ -63,7 +63,7 @@ public class WmsMqttInboundExampleHandler {
             // tasks.forEach(t -> t.setWarehouseId(warehouseId));
             // tasksService.insertBatch(tasks);
         } catch (Exception e) {
-            log.debug("[MQTT WMS 示例] 非 JSON 或解析失败: {}", e.toString());
+            log.warn("[MQTT WMS 示例] 非 JSON 或解析失败, body={}", abbrev(body), e);
         }
     }
 

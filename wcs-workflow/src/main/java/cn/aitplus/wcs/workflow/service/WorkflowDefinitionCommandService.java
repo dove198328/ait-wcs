@@ -265,7 +265,7 @@ public class WorkflowDefinitionCommandService {
         try {
             JSON.parse(processData);
         } catch (Exception ex) {
-            throw new IllegalArgumentException("processData 不是合法的 JSON 格式");
+            throw new IllegalArgumentException("processData 不是合法的 JSON 格式", ex);
         }
     }
 
@@ -287,7 +287,7 @@ public class WorkflowDefinitionCommandService {
         } catch (IllegalArgumentException ex) {
             throw ex;
         } catch (Exception ex) {
-            throw new IllegalArgumentException("config 不是合法的 BPMN XML 格式");
+            throw new IllegalArgumentException("config 不是合法的 BPMN XML 格式", ex);
         }
     }
 

@@ -3,6 +3,8 @@ package cn.aitplus.wcs.common.domain.page;
 import cn.aitplus.wcs.utils.AESUtil;
 import cn.aitplus.wcs.utils.EncryptUtils;
 import cn.hutool.json.JSONUtil;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 
 import java.io.Serializable;
 import java.lang.reflect.Method;
@@ -17,6 +19,8 @@ import java.util.List;
 public class TableDataInfo<T> implements Serializable {
     private static final long serialVersionUID = 1L;
     private static final int HTTP_OK = 200;
+
+    private static final Logger log = LoggerFactory.getLogger(TableDataInfo.class);
 
     public interface TableDataInfoView {}
 
@@ -60,6 +64,8 @@ public class TableDataInfo<T> implements Serializable {
                 rspData.handleDataEncrypt(records);
                 rspData.setTotal(total instanceof Number ? ((Number) total).longValue() : 0L);
             } catch (Exception e) {
+                log.error("分页结果构建失败（getRecords/getTotal 反射或数据异常），pageType={}",
+                    page.getClass().getName(), e);
                 rspData.handleDataEncrypt(Collections.emptyList());
                 rspData.setTotal(0L);
             }

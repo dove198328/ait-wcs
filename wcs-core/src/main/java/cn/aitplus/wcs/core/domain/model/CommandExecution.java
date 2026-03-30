@@ -28,7 +28,7 @@ public class CommandExecution implements Serializable {
     @ApiModelProperty("指令ID")
     private Long instructionId;
 
-    @ApiModelProperty("协议域：S7/MODBUS/RCS")
+    @ApiModelProperty("协议域：S7/MODBUS/RCS/OPC")
     private String domain;
 
     @ApiModelProperty("设备ID")

@@ -78,7 +78,7 @@ wcs-platform/
 
 ### 2.7 wcs-adapters
 
-- 设备/三方接入实现：S7、Modbus、RCS HTTP
+- 设备/三方接入实现：S7、Modbus、RCS HTTP、OPC UA（域枚举见 `CommandDomain`）；工业 IO 实现包 **`cn.aitplus.wcs.adapters.io`**
 - 连接复用、心跳、重连、轮询/回调封装
 - 上层通过 wcs-core 定义的抽象（Facade/Client）访问
 

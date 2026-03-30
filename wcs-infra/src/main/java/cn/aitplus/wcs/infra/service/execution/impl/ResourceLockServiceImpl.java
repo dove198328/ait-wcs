@@ -4,6 +4,8 @@ import cn.aitplus.wcs.core.domain.model.ResourceLock;
 import cn.aitplus.wcs.infra.persistence.execution.ResourceLockMapper;
 import cn.aitplus.wcs.infra.service.execution.ResourceLockService;
 import com.baomidou.mybatisplus.core.metadata.IPage;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 import org.springframework.dao.DuplicateKeyException;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
@@ -13,6 +15,8 @@ import java.util.List;
 
 @Service
 public class ResourceLockServiceImpl implements ResourceLockService {
+
+    private static final Logger log = LoggerFactory.getLogger(ResourceLockServiceImpl.class);
 
     private final ResourceLockMapper resourceLockMapper;
 
@@ -72,7 +76,7 @@ public class ResourceLockServiceImpl implements ResourceLockService {
                 return resourceLockMapper.queryByLockKey(wareHouseId, lockRequest.getLockKey());
             }
         } catch (DuplicateKeyException ex) {
-            // ignore and continue to ownership check
+            log.debug("锁并发插入冲突，继续校验持有者 lockKey={}", lockRequest.getLockKey(), ex);
         }
 
         int renewed = resourceLockMapper.renewByOwner(

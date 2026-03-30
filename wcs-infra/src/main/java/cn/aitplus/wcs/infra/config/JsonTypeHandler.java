@@ -36,7 +36,7 @@ public class JsonTypeHandler<T> extends BaseTypeHandler<T> {
             String json = objectMapper.writeValueAsString(parameter);
             ps.setString(i, json);
         } catch (JsonProcessingException e) {
-            log.error("Error converting object to JSON: {}", e.getMessage());
+            log.error("Error converting object to JSON", e);
             throw new SQLException("Error converting object to JSON", e);
         }
     }
@@ -65,7 +65,7 @@ public class JsonTypeHandler<T> extends BaseTypeHandler<T> {
             return objectMapper.readValue(json, clazz);
         } catch (JsonProcessingException e) {
             // 如果不是合法 JSON，则直接把原始字符串返回，避免上层收到 null
-            log.debug("JsonTypeHandler fallback to raw string for '{}': {}", json, e.getMessage());
+            log.warn("JsonTypeHandler 无法反序列化为 {}，回退为原始字符串", clazz.getName(), e);
             @SuppressWarnings("unchecked")
             T raw = (T) json;
             return raw;

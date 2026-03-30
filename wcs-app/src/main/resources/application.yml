@@ -22,6 +22,21 @@ swagger:
   enabled: true
 
 wcs:
+  adapter:
+    # S7（PLC4X）长连接；默认关闭，对接 PLC 时置 enabled: true
+    s7:
+      enabled: false
+      default-request-timeout-millis: 5000
+      max-reconnect-attempts: 8
+      reconnect-initial-delay-millis: 500
+      reconnect-max-delay-millis: 30000
+      heartbeat-interval-millis: 0
+      heartbeat-read-address: ""
+      # 取用连接前 ping（失败则读 heartbeat 地址）；建议生产对关键 PLC 配置 heartbeat-read-address
+      borrow-probe-enabled: true
+      borrow-probe-timeout-millis: 3000
+      # 定时巡检池中连接；0 关闭
+      stale-check-interval-millis: 60000
   # 是否开启返回数据加密
   encrypt:
     enabled: false

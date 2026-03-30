@@ -42,7 +42,9 @@ public final class DomainEnums {
     public enum CommandDomain {
         S7,
         MODBUS,
-        RCS
+        RCS,
+        /** OPC UA 等长会话 + 订阅类接入 */
+        OPC
     }
 
     public enum OwnerType {
