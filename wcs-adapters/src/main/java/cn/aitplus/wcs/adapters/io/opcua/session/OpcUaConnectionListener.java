@@ -15,6 +15,18 @@ public interface OpcUaConnectionListener {
     }
 
     /**
+     * Session 恢复活跃后回调；同一个 client 在重连后可能多次触发。
+     */
+    default void onSessionActive(ConnectionKey key, OpcUaClient client) {
+    }
+
+    /**
+     * Session 进入 inactive 状态时回调；不意味着此时要主动 disconnect。
+     */
+    default void onSessionInactive(ConnectionKey key, OpcUaClient client) {
+    }
+
+    /**
      * 即将断开并丢弃客户端引用之前调用（在持有该连接 {@code lock} 的线程上）；{@code client} 可能为 null。
      */
     default void beforeClientTeardown(ConnectionKey key, OpcUaClient client) {

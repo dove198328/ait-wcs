@@ -75,6 +75,7 @@ wcs-platform/
 - InstructionRunner：按 Instruction 顺序执行 Command 列表
 - CommandPipeline：执行链（校验→锁→下发→等待→审计→释放→回写 CommandExecution）
 - ExceptionDispatcher：按 chain 调用异常插件输出处置决策
+- **OPC UA 订阅通知**：若在 execution（或经 app 装配的 Bean）中监听 **`OpcUaSubscriptionNotificationEvent`**，**必须先阅读** [09-Device-IO-Transport.md — 集成必查 OPC 订阅通知](./09-Device-IO-Transport.md#opc-subscription-event-integration)（**Milo 回调线程上同步分发**、监听须轻量、重活异步化）；适配器不包一层异步。
 
 ### 2.7 wcs-adapters
 

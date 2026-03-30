@@ -27,10 +27,12 @@ import java.util.ArrayList;
 import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
-import java.util.concurrent.TimeUnit;
 
 /**
  * OPC UA 同步 IO：通过 {@link OpcUaClientRegistry} 复用会话；与 {@link cn.aitplus.wcs.adapters.io.opcua.subscription.OpcUaSubscriptionService} 共享注册表。
+ * <p>
+ * 单次 Read/Write 超时由 Milo 客户端 {@link OpcUaAdapterProperties#getDefaultRequestTimeoutMillis()}（建连时 {@code setRequestTimeout}）约束；
+ * {@link DeviceIoRequest#getTimeoutMillis()} 为跨协议契约字段（如 S7 使用），OPC 路径当前未单独接入。
  */
 public class OpcUaDeviceTransport implements DeviceTransport, Ordered {
 
@@ -98,13 +100,9 @@ public class OpcUaDeviceTransport implements DeviceTransport, Ordered {
             return DeviceIoResult.fail("INVALID_ENDPOINT", e.getMessage());
         }
 
-        long timeoutMs = request.getTimeoutMillis() > 0
-            ? request.getTimeoutMillis()
-            : properties.getDefaultRequestTimeoutMillis();
-
         try {
-            return registry.executeWithClient(key, request.getEndpoint(), timeoutMs,
-                client -> runIo(client, request.getItems(), timeoutMs));
+            return registry.executeWithClient(key, request.getEndpoint(),
+                client -> runIo(client, request.getItems()));
         } catch (InterruptedException e) {
             Thread.currentThread().interrupt();
             return DeviceIoResult.fail("INTERRUPTED", "OPC UA IO interrupted");
@@ -116,7 +114,7 @@ public class OpcUaDeviceTransport implements DeviceTransport, Ordered {
         }
     }
 
-    private DeviceIoResult runIo(OpcUaClient client, List<DeviceIoItem> items, long timeoutMs) throws Exception {
+    private DeviceIoResult runIo(OpcUaClient client, List<DeviceIoItem> items) throws Exception {
         List<DeviceIoItem> reads = new ArrayList<>();
         List<DeviceIoItem> writes = new ArrayList<>();
         for (DeviceIoItem item : items) {
@@ -141,8 +139,7 @@ public class OpcUaDeviceTransport implements DeviceTransport, Ordered {
                     NodeId nodeId = NodeId.parse(item.getAddress().trim());
                     readIds.add(new ReadValueId(nodeId, AttributeId.Value.uid(), null, null));
                 }
-                var readResponse = client.read(0.0, TimestampsToReturn.Both, readIds)
-                    .get(timeoutMs, TimeUnit.MILLISECONDS);
+                var readResponse = client.read(0.0, TimestampsToReturn.Both, readIds);
                 DataValue[] results = readResponse.getResults();
                 if (results == null || results.length != chunk.size()) {
                     return DeviceIoResult.fail("OPC_UA_READ_ERROR", "Read response size mismatch");
@@ -175,7 +172,7 @@ public class OpcUaDeviceTransport implements DeviceTransport, Ordered {
                     DataValue dataValue = new DataValue(variant, null, null);
                     writeValues.add(new WriteValue(nodeId, AttributeId.Value.uid(), null, dataValue));
                 }
-                var writeResponse = client.write(writeValues).get(timeoutMs, TimeUnit.MILLISECONDS);
+                var writeResponse = client.write(writeValues);
                 StatusCode[] codes = writeResponse.getResults();
                 if (codes == null || codes.length != chunk.size()) {
                     return DeviceIoResult.fail("OPC_UA_WRITE_ERROR", "Write response size mismatch");

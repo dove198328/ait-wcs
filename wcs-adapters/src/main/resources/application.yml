@@ -17,17 +17,25 @@ wcs:
       enabled: true
       max-nodes-per-service-call: 200
       session-probe-enabled: true
-      session-probe-timeout-millis: 3000
       idle-max-millis: 0
       execute-read-enabled: false
       execute-write-enabled: false
       subscription-enabled: true
       subscription-publishing-interval-millis: 1000
-      max-monitored-items-per-create-batch: 200
+      # 当 subscription-watchdog-interval-millis > 0 时走 Milo setTargetKeepAliveInterval，下列 count 由 Milo 推导，此处不生效
+      subscription-max-keep-alive-count: 10
+      subscription-lifetime-count: 60
+      subscription-max-notifications-per-publish: 0
+      subscription-priority: 0
+      subscription-watchdog-interval-millis: 5000
+      subscription-watchdog-silence-multiplier: 3
+      rebuild-initial-delay-millis: 500
+      rebuild-max-delay-millis: 30000
       default-request-timeout-millis: 5000
       application-name: "WCS OPC UA Client"
       application-uri: "urn:aitplus:wcs:opcua-client"
       security-policy: None
+      message-security-mode: None
       username: ""
       password: ""
       insecure-trust-server-certificate: true

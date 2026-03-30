@@ -21,8 +21,9 @@ public class OpcUaAdapterConfiguration {
     @Bean(name = "opcUaTaskScheduler")
     public ThreadPoolTaskScheduler opcUaTaskScheduler() {
         ThreadPoolTaskScheduler scheduler = new ThreadPoolTaskScheduler();
-        scheduler.setPoolSize(2);
+        scheduler.setPoolSize(4);
         scheduler.setThreadNamePrefix("opc-ua-");
+        scheduler.setRemoveOnCancelPolicy(true);
         scheduler.initialize();
         return scheduler;
     }

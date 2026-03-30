@@ -7,21 +7,14 @@ import cn.aitplus.wcs.adapters.io.opcua.session.OpcUaConnectionListener;
 import cn.aitplus.wcs.core.domain.enums.DomainEnums;
 import cn.aitplus.wcs.core.spi.device.DeviceEndpoint;
 import org.eclipse.milo.opcua.sdk.client.OpcUaClient;
-import org.eclipse.milo.opcua.sdk.client.api.subscriptions.UaMonitoredItem;
-import org.eclipse.milo.opcua.sdk.client.api.subscriptions.UaSubscription;
-import org.eclipse.milo.opcua.sdk.client.api.subscriptions.UaSubscriptionManager;
-import org.eclipse.milo.opcua.stack.core.AttributeId;
-import org.eclipse.milo.opcua.stack.core.UaException;
+import org.eclipse.milo.opcua.sdk.client.subscriptions.MonitoredItemServiceOperationResult;
+import org.eclipse.milo.opcua.sdk.client.subscriptions.OpcUaMonitoredItem;
+import org.eclipse.milo.opcua.sdk.client.subscriptions.OpcUaSubscription;
 import org.eclipse.milo.opcua.stack.core.types.builtin.DataValue;
 import org.eclipse.milo.opcua.stack.core.types.builtin.NodeId;
-import org.eclipse.milo.opcua.stack.core.types.builtin.QualifiedName;
 import org.eclipse.milo.opcua.stack.core.types.builtin.StatusCode;
 import org.eclipse.milo.opcua.stack.core.types.builtin.unsigned.Unsigned;
 import org.eclipse.milo.opcua.stack.core.types.enumerated.MonitoringMode;
-import org.eclipse.milo.opcua.stack.core.types.enumerated.TimestampsToReturn;
-import org.eclipse.milo.opcua.stack.core.types.structured.MonitoredItemCreateRequest;
-import org.eclipse.milo.opcua.stack.core.types.structured.MonitoringParameters;
-import org.eclipse.milo.opcua.stack.core.types.structured.ReadValueId;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.context.ApplicationEventPublisher;
@@ -37,13 +30,11 @@ import java.util.Map;
 import java.util.Set;
 import java.util.UUID;
 import java.util.concurrent.ConcurrentHashMap;
-import java.util.concurrent.TimeUnit;
-import java.util.concurrent.TimeoutException;
-import java.util.concurrent.atomic.AtomicLong;
+import java.util.concurrent.ScheduledFuture;
 
 /**
- * OPC UA MonitoredItem 订阅：与 {@link OpcUaClientRegistry} 共享会话；
- * 连接拆除或 Publish 异常时重建订阅；每条数据通知发布 {@link OpcUaSubscriptionNotificationEvent}。
+ * OPC UA MonitoredItem 订阅：与 {@link OpcUaClientRegistry} 共享会话，含 watch-dog、合并重建与状态清理。
+ * 重建执行中（{@code rebuildRunning}）若再次请求重建，会置 {@code rebuildDirty}，本轮结束后补调度一次，避免注册集与服务端不一致。
  */
 public final class OpcUaSubscriptionService implements OpcUaConnectionListener {
 
@@ -58,8 +49,6 @@ public final class OpcUaSubscriptionService implements OpcUaConnectionListener {
     private final ConcurrentHashMap<String, Registration> byId = new ConcurrentHashMap<>();
     private final ConcurrentHashMap<ConnectionKey, Set<String>> regIdsByKey = new ConcurrentHashMap<>();
     private final ConcurrentHashMap<ConnectionKey, SubscriptionState> stateByKey = new ConcurrentHashMap<>();
-    private final ConcurrentHashMap<ConnectionKey, Object> rebuildLocks = new ConcurrentHashMap<>();
-    private final AtomicLong clientHandleSeq = new AtomicLong(1);
 
     private volatile boolean destroyed;
 
@@ -74,9 +63,6 @@ public final class OpcUaSubscriptionService implements OpcUaConnectionListener {
         this.eventSource = this;
     }
 
-    /**
-     * 注册一组 NodeId；同一 endpoint+仓 下多设备可多次注册。返回 registrationId，{@link #unregister(String)} 注销。
-     */
     public String register(Long warehouseId, String deviceId, DeviceEndpoint endpoint, Iterable<String> nodeIds) {
         if (!properties.isSubscriptionEnabled()) {
             throw new IllegalStateException("wcs.adapter.opcua.subscription-enabled=false");
@@ -88,20 +74,21 @@ public final class OpcUaSubscriptionService implements OpcUaConnectionListener {
             throw new IllegalArgumentException("endpoint.opcEndpointUrl required");
         }
         Set<String> nodes = new LinkedHashSet<>();
-        for (String n : nodeIds) {
-            if (StringUtils.hasText(n)) {
-                nodes.add(n.trim());
+        for (String nodeId : nodeIds) {
+            if (StringUtils.hasText(nodeId)) {
+                nodes.add(nodeId.trim());
             }
         }
         if (nodes.isEmpty()) {
             throw new IllegalArgumentException("nodeIds must not be empty");
         }
+
         ConnectionKey key = ConnectionKey.from(warehouseId, DomainEnums.CommandDomain.OPC, endpoint);
         String registrationId = UUID.randomUUID().toString();
         Registration reg = new Registration(warehouseId, deviceId, endpoint, nodes, key);
         byId.put(registrationId, reg);
         regIdsByKey.computeIfAbsent(key, k -> ConcurrentHashMap.newKeySet()).add(registrationId);
-        scheduleRebuild(key);
+        scheduleRebuild(key, 150L, true, "register");
         return registrationId;
     }
 
@@ -113,182 +100,313 @@ public final class OpcUaSubscriptionService implements OpcUaConnectionListener {
         if (reg == null) {
             return;
         }
-        Set<String> set = regIdsByKey.get(reg.key);
-        if (set != null) {
-            set.remove(registrationId);
-            if (set.isEmpty()) {
-                regIdsByKey.remove(reg.key, set);
+        Set<String> ids = regIdsByKey.get(reg.key);
+        if (ids != null) {
+            ids.remove(registrationId);
+            if (ids.isEmpty()) {
+                regIdsByKey.remove(reg.key, ids);
             }
         }
-        scheduleRebuild(reg.key);
+        scheduleRebuild(reg.key, 150L, true, "unregister");
     }
 
     @Override
-    public void onClientConnected(ConnectionKey key, OpcUaClient client) {
-        if (!properties.isSubscriptionEnabled() || destroyed) {
-            return;
+    public void onSessionActive(ConnectionKey key, OpcUaClient client) {
+        SubscriptionState state = stateByKey.computeIfAbsent(key, k -> new SubscriptionState());
+        synchronized (state.lock) {
+            state.sessionInactive = false;
+            state.markPublishActivity();
         }
-        client.getSubscriptionManager().addSubscriptionListener(new UaSubscriptionManager.SubscriptionListener() {
-            @Override
-            public void onPublishFailure(UaException exception) {
-                LOG.warn("OPC UA publish failure {}: {}", key, exception.getMessage());
-                scheduleRebuild(key);
-            }
+        scheduleRebuild(key, 150L, true, "session-active");
+    }
 
-            @Override
-            public void onSubscriptionTransferFailed(UaSubscription subscription, StatusCode statusCode) {
-                LOG.warn("OPC UA subscription transfer failed {}: {}", key, statusCode);
-                scheduleRebuild(key);
-            }
-        });
+    @Override
+    public void onSessionInactive(ConnectionKey key, OpcUaClient client) {
+        SubscriptionState state = stateByKey.computeIfAbsent(key, k -> new SubscriptionState());
+        synchronized (state.lock) {
+            state.sessionInactive = true;
+        }
     }
 
     @Override
     public void beforeClientTeardown(ConnectionKey key, OpcUaClient client) {
-        SubscriptionState st = stateByKey.get(key);
-        if (st != null) {
-            st.subscription = null;
+        SubscriptionState state = stateByKey.get(key);
+        if (state != null) {
+            synchronized (state.lock) {
+                state.subscription = null;
+                state.sessionInactive = true;
+            }
         }
     }
 
     @Override
     public void afterClientTeardown(ConnectionKey key) {
-        if (properties.isSubscriptionEnabled() && !destroyed) {
-            scheduleRebuild(key);
+        if (!destroyed && properties.isSubscriptionEnabled() && hasRegistrations(key)) {
+            scheduleRebuild(key, 0L, false, "client-teardown");
         }
     }
 
-    private void scheduleRebuild(ConnectionKey key) {
-        if (!properties.isSubscriptionEnabled() || destroyed) {
+    private void scheduleRebuild(ConnectionKey key, long requestedDelayMs, boolean resetBackoff, String reason) {
+        if (destroyed || !properties.isSubscriptionEnabled()) {
             return;
         }
-        taskScheduler.schedule(() -> rebuildForKey(key), Instant.now().plusMillis(150));
+        SubscriptionState state = stateByKey.computeIfAbsent(key, k -> new SubscriptionState());
+        synchronized (state.lock) {
+            if (resetBackoff) {
+                state.consecutiveFailures = 0;
+            }
+            if (state.rebuildRunning) {
+                state.rebuildDirty = true;
+                return;
+            }
+            if (state.pendingRebuild != null) {
+                return;
+            }
+            long delay = requestedDelayMs > 0 ? requestedDelayMs : computeBackoffDelayMillis(state.consecutiveFailures);
+            state.lastRebuildReason = reason;
+            state.pendingRebuild = taskScheduler.schedule(() -> runRebuild(key), Instant.now().plusMillis(delay));
+        }
     }
 
-    private void rebuildForKey(ConnectionKey key) {
-        Object lk = rebuildLocks.computeIfAbsent(key, k -> new Object());
-        synchronized (lk) {
-            try {
-                Set<String> ids = regIdsByKey.get(key);
-                if (ids == null || ids.isEmpty()) {
-                    deleteSubscriptionQuietly(key, null);
-                    stateByKey.remove(key);
-                    return;
+    private void runRebuild(ConnectionKey key) {
+        SubscriptionState state = stateByKey.computeIfAbsent(key, k -> new SubscriptionState());
+        synchronized (state.lock) {
+            state.pendingRebuild = null;
+            if (state.rebuildRunning || destroyed) {
+                return;
+            }
+            state.rebuildRunning = true;
+        }
+        boolean scheduleCoalesce = false;
+        try {
+            rebuildForKey(key, state);
+        } finally {
+            synchronized (state.lock) {
+                state.rebuildRunning = false;
+                if (state.rebuildDirty) {
+                    state.rebuildDirty = false;
+                    scheduleCoalesce = true;
                 }
-                List<Registration> regs = loadRegistrations(ids);
-                if (regs.isEmpty()) {
-                    return;
+            }
+            cleanupStateIfIdle(key, state);
+            if (scheduleCoalesce && !destroyed && properties.isSubscriptionEnabled() && hasRegistrations(key)) {
+                scheduleRebuild(key, 0L, false, "coalesce");
+            }
+        }
+    }
+
+    private void rebuildForKey(ConnectionKey key, SubscriptionState state) {
+        try {
+            Set<String> ids = regIdsByKey.get(key);
+            if (ids == null || ids.isEmpty()) {
+                synchronized (state.lock) {
+                    deleteSubscriptionQuietly(key, state);
                 }
-                DeviceEndpoint endpoint = regs.get(0).endpoint;
-                long timeout = properties.getDefaultRequestTimeoutMillis();
-                registry.executeWithClient(key, endpoint, timeout, client -> {
-                    rebuildSubscriptionOnClient(key, client, regs, timeout);
-                    return null;
-                });
-            } catch (Exception e) {
-                LOG.warn("OPC UA subscription rebuild failed for {}", key, e);
+                stateByKey.remove(key, state);
+                return;
+            }
+
+            List<Registration> registrations = loadRegistrations(ids);
+            if (registrations.isEmpty()) {
+                return;
+            }
+
+            DeviceEndpoint endpoint = registrations.get(0).endpoint;
+            registry.executeWithClient(key, endpoint, client -> {
+                synchronized (state.lock) {
+                    rebuildSubscriptionOnClient(key, state, client, registrations);
+                    state.consecutiveFailures = 0;
+                    state.sessionInactive = false;
+                    state.markPublishActivity();
+                }
+                return null;
+            });
+        } catch (Exception e) {
+            synchronized (state.lock) {
+                state.consecutiveFailures++;
+            }
+            LOG.warn("OPC UA subscription rebuild failed for {} reason={}", key, state.lastRebuildReason, e);
+            if (!destroyed && hasRegistrations(key)) {
+                scheduleRebuild(key, 0L, false, "retry");
             }
         }
     }
 
     private List<Registration> loadRegistrations(Set<String> ids) {
-        List<Registration> regs = new ArrayList<>();
+        List<Registration> registrations = new ArrayList<>();
         for (String id : ids) {
-            Registration r = byId.get(id);
-            if (r != null) {
-                regs.add(r);
+            Registration reg = byId.get(id);
+            if (reg != null) {
+                registrations.add(reg);
             }
         }
-        return regs;
+        return registrations;
     }
 
-    private void rebuildSubscriptionOnClient(ConnectionKey key, OpcUaClient client, List<Registration> regs, long timeoutMs)
-        throws Exception {
-        SubscriptionState st = stateByKey.computeIfAbsent(key, k -> new SubscriptionState());
-        deleteSubscriptionQuietly(key, client);
+    private void rebuildSubscriptionOnClient(ConnectionKey key,
+                                             SubscriptionState state,
+                                             OpcUaClient client,
+                                             List<Registration> registrations) throws Exception {
+        deleteSubscriptionQuietly(key, state);
 
-        UaSubscription sub = client.getSubscriptionManager()
-            .createSubscription(properties.getSubscriptionPublishingIntervalMillis())
-            .get(timeoutMs, TimeUnit.MILLISECONDS);
-        st.subscription = sub;
+        Map<String, List<RoutingTarget>> routing = buildRouting(registrations);
+        OpcUaSubscription subscription = new OpcUaSubscription(client, properties.getSubscriptionPublishingIntervalMillis());
+        long targetKeepAliveMs = properties.getSubscriptionWatchdogIntervalMillis();
+        if (targetKeepAliveMs > 0L) {
+            subscription.setTargetKeepAliveInterval((double) targetKeepAliveMs);
+        } else {
+            subscription.setMaxKeepAliveCount(Unsigned.uint(properties.getSubscriptionMaxKeepAliveCount()));
+            subscription.setLifetimeCount(Unsigned.uint(properties.getSubscriptionLifetimeCount()));
+        }
+        subscription.setMaxNotificationsPerPublish(Unsigned.uint(properties.getSubscriptionMaxNotificationsPerPublish()));
+        subscription.setPriority(Unsigned.ubyte(properties.getSubscriptionPriority()));
+        subscription.setWatchdogMultiplier((double) Math.max(2L, properties.getSubscriptionWatchdogSilenceMultiplier()));
+        subscription.setSubscriptionListener(new OpcUaSubscription.SubscriptionListener() {
+            @Override
+            public void onDataReceived(OpcUaSubscription sub,
+                                       List<OpcUaMonitoredItem> items,
+                                       List<DataValue> values) {
+                markPublishActivity(state);
+            }
 
-        Map<String, List<RoutingTarget>> routing = buildRouting(regs);
-        List<MonitoredItemCreateRequest> allRequests = new ArrayList<>();
-        for (Map.Entry<String, List<RoutingTarget>> e : routing.entrySet()) {
-            NodeId nodeId = NodeId.parse(e.getKey());
-            long handle = clientHandleSeq.getAndIncrement();
-            ReadValueId rv = new ReadValueId(nodeId, AttributeId.Value.uid(), null, QualifiedName.NULL_VALUE);
-            MonitoringParameters params = new MonitoringParameters(
-                Unsigned.uint(handle),
-                properties.getSubscriptionPublishingIntervalMillis(),
-                null,
-                Unsigned.uint(256),
-                true
-            );
-            allRequests.add(new MonitoredItemCreateRequest(rv, MonitoringMode.Reporting, params));
+            @Override
+            public void onKeepAliveReceived(OpcUaSubscription sub) {
+                markPublishActivity(state);
+            }
+
+            @Override
+            public void onNotificationDataLost(OpcUaSubscription sub) {
+                LOG.warn("OPC UA notification data lost {}", key);
+                scheduleRebuild(key, 0L, false, "notification-data-lost");
+            }
+
+            @Override
+            public void onWatchdogTimerElapsed(OpcUaSubscription sub) {
+                LOG.warn("OPC UA subscription watchdog elapsed {}", key);
+                scheduleRebuild(key, 0L, false, "watchdog");
+            }
+
+            @Override
+            public void onStatusChanged(OpcUaSubscription sub, StatusCode statusCode) {
+                markPublishActivity(state);
+                if (statusCode != null && !statusCode.isGood()) {
+                    LOG.warn("OPC UA subscription status changed {}: {}", key, statusCode);
+                }
+            }
+
+            @Override
+            public void onTransferFailed(OpcUaSubscription sub, StatusCode statusCode) {
+                LOG.warn("OPC UA subscription transfer failed {}: {}", key, statusCode);
+                scheduleRebuild(key, 0L, false, "transfer-failed");
+            }
+        });
+
+        subscription.create();
+        state.subscription = subscription;
+        state.markPublishActivity();
+
+        List<OpcUaMonitoredItem> items = new ArrayList<>();
+        for (Map.Entry<String, List<RoutingTarget>> entry : routing.entrySet()) {
+            NodeId nodeId = NodeId.parse(entry.getKey());
+            OpcUaMonitoredItem item = OpcUaMonitoredItem.newDataItem(nodeId, MonitoringMode.Reporting);
+            item.setSamplingInterval(properties.getSubscriptionPublishingIntervalMillis());
+            item.setQueueSize(Unsigned.uint(256));
+            item.setDiscardOldest(true);
+            item.setUserObject(entry.getKey());
+            item.setDataValueListener((OpcUaMonitoredItem monitoredItem, DataValue value) ->
+                deliver(state, (String) monitoredItem.getUserObject().orElse(entry.getKey()), routing, value));
+            items.add(item);
         }
 
-        int batch = Math.max(1, properties.getMaxMonitoredItemsPerCreateBatch());
-        for (int i = 0; i < allRequests.size(); i += batch) {
-            List<MonitoredItemCreateRequest> chunk = allRequests.subList(i, Math.min(i + batch, allRequests.size()));
-            List<MonitoredItemCreateRequest> chunkCopy = new ArrayList<>(chunk);
-            sub.createMonitoredItems(TimestampsToReturn.Both, chunkCopy, (item, idx) -> {
-                ReadValueId rv = (ReadValueId) chunkCopy.get(idx).getItemToMonitor();
-                NodeId nid = rv.getNodeId();
-                String norm = nid.toParseableString();
-                item.setValueConsumer((UaMonitoredItem mi, DataValue dv) -> deliver(norm, routing, dv));
-            }).get(timeoutMs, TimeUnit.MILLISECONDS);
+        subscription.addMonitoredItems(items);
+        List<MonitoredItemServiceOperationResult> results = subscription.createMonitoredItems();
+        for (MonitoredItemServiceOperationResult result : results) {
+            if (!result.isGood()) {
+                throw new IllegalStateException("CreateMonitoredItems failed: " + result.serviceResult());
+            }
         }
-        LOG.info("OPC UA subscription rebuilt for {} with {} monitored items", key, allRequests.size());
+
+        LOG.info("OPC UA subscription rebuilt for {} with {} monitored items", key, items.size());
     }
 
-    private void deliver(String norm, Map<String, List<RoutingTarget>> routing, DataValue dv) {
+    private void deliver(SubscriptionState state, String norm, Map<String, List<RoutingTarget>> routing, DataValue dv) {
+        markPublishActivity(state);
         if (dv == null || dv.getStatusCode() == null || !dv.getStatusCode().isGood()) {
             return;
         }
         if (dv.getValue() == null || dv.getValue().isNull()) {
             return;
         }
-        Object val = dv.getValue().getValue();
+        Object value = dv.getValue().getValue();
         List<RoutingTarget> targets = routing.get(norm);
         if (targets == null) {
             return;
         }
-        for (RoutingTarget t : targets) {
+        for (RoutingTarget target : targets) {
             eventPublisher.publishEvent(new OpcUaSubscriptionNotificationEvent(
-                eventSource, t.warehouseId, t.deviceId, t.originalNodeIdString, val));
+                eventSource, target.warehouseId, target.deviceId, target.originalNodeIdString, value));
         }
     }
 
-    private void deleteSubscriptionQuietly(ConnectionKey key, OpcUaClient clientOrNull) {
-        SubscriptionState st = stateByKey.get(key);
-        if (st == null || st.subscription == null) {
+    private void deleteSubscriptionQuietly(ConnectionKey key, SubscriptionState state) {
+        if (state.subscription == null) {
             return;
         }
-        UaSubscription sub = st.subscription;
-        st.subscription = null;
-        OpcUaClient client = clientOrNull != null ? clientOrNull : registry.peekClient(key);
-        if (client == null) {
-            return;
-        }
-        long timeout = properties.getDefaultRequestTimeoutMillis();
+        OpcUaSubscription subscription = state.subscription;
+        state.subscription = null;
         try {
-            client.getSubscriptionManager().deleteSubscription(sub.getSubscriptionId()).get(timeout, TimeUnit.MILLISECONDS);
-        } catch (TimeoutException e) {
-            LOG.debug("deleteSubscription timeout {}", key);
+            subscription.delete();
         } catch (Exception e) {
             LOG.debug("deleteSubscription {}: {}", key, e.getMessage());
         }
     }
 
-    private static Map<String, List<RoutingTarget>> buildRouting(List<Registration> regs) {
+    private boolean hasRegistrations(ConnectionKey key) {
+        Set<String> ids = regIdsByKey.get(key);
+        return ids != null && !ids.isEmpty();
+    }
+
+    private void markPublishActivity(SubscriptionState state) {
+        synchronized (state.lock) {
+            state.markPublishActivity();
+        }
+    }
+
+    private long computeBackoffDelayMillis(long failures) {
+        long initial = Math.max(100L, properties.getRebuildInitialDelayMillis());
+        long max = Math.max(initial, properties.getRebuildMaxDelayMillis());
+        long delay = initial;
+        for (long i = 0; i < failures; i++) {
+            if (delay >= max / 2L) {
+                return max;
+            }
+            delay *= 2L;
+        }
+        return Math.min(delay, max);
+    }
+
+    private void cleanupStateIfIdle(ConnectionKey key, SubscriptionState state) {
+        synchronized (state.lock) {
+            if (state.subscription != null) {
+                return;
+            }
+            if (state.pendingRebuild != null || state.rebuildRunning) {
+                return;
+            }
+            if (hasRegistrations(key)) {
+                return;
+            }
+        }
+        stateByKey.remove(key, state);
+    }
+
+    private static Map<String, List<RoutingTarget>> buildRouting(List<Registration> registrations) {
         Map<String, List<RoutingTarget>> routing = new LinkedHashMap<>();
-        for (Registration r : regs) {
-            for (String raw : r.nodeIds) {
-                NodeId nid = NodeId.parse(raw);
-                String norm = nid.toParseableString();
-                routing.computeIfAbsent(norm, k -> new ArrayList<>())
-                    .add(new RoutingTarget(r.warehouseId, r.deviceId, raw));
+        for (Registration reg : registrations) {
+            for (String raw : reg.nodeIds) {
+                NodeId nodeId = NodeId.parse(raw);
+                routing.computeIfAbsent(nodeId.toParseableString(), k -> new ArrayList<>())
+                    .add(new RoutingTarget(reg.warehouseId, reg.deviceId, raw));
             }
         }
         return routing;
@@ -296,6 +414,16 @@ public final class OpcUaSubscriptionService implements OpcUaConnectionListener {
 
     public void destroy() {
         destroyed = true;
+        for (Map.Entry<ConnectionKey, SubscriptionState> entry : stateByKey.entrySet()) {
+            SubscriptionState state = entry.getValue();
+            synchronized (state.lock) {
+                if (state.pendingRebuild != null) {
+                    state.pendingRebuild.cancel(false);
+                    state.pendingRebuild = null;
+                }
+                deleteSubscriptionQuietly(entry.getKey(), state);
+            }
+        }
         byId.clear();
         regIdsByKey.clear();
         stateByKey.clear();
@@ -308,7 +436,7 @@ public final class OpcUaSubscriptionService implements OpcUaConnectionListener {
         final Set<String> nodeIds;
         final ConnectionKey key;
 
-        Registration(Long warehouseId, String deviceId, DeviceEndpoint endpoint, Set<String> nodeIds, ConnectionKey key) {
+        private Registration(Long warehouseId, String deviceId, DeviceEndpoint endpoint, Set<String> nodeIds, ConnectionKey key) {
             this.warehouseId = warehouseId;
             this.deviceId = deviceId;
             this.endpoint = endpoint;
@@ -322,7 +450,7 @@ public final class OpcUaSubscriptionService implements OpcUaConnectionListener {
         final String deviceId;
         final String originalNodeIdString;
 
-        RoutingTarget(Long warehouseId, String deviceId, String originalNodeIdString) {
+        private RoutingTarget(Long warehouseId, String deviceId, String originalNodeIdString) {
             this.warehouseId = warehouseId;
             this.deviceId = deviceId;
             this.originalNodeIdString = originalNodeIdString;
@@ -330,6 +458,19 @@ public final class OpcUaSubscriptionService implements OpcUaConnectionListener {
     }
 
     private static final class SubscriptionState {
-        volatile UaSubscription subscription;
+        final Object lock = new Object();
+        OpcUaSubscription subscription;
+        ScheduledFuture<?> pendingRebuild;
+        boolean rebuildRunning;
+        /** 重建执行期间有新的 register/unregister 等请求时置位，本轮结束后补一次 scheduleRebuild */
+        boolean rebuildDirty;
+        boolean sessionInactive;
+        long lastPublishActivityAtMillis = System.currentTimeMillis();
+        long consecutiveFailures;
+        String lastRebuildReason = "init";
+
+        void markPublishActivity() {
+            lastPublishActivityAtMillis = System.currentTimeMillis();
+        }
     }
 }

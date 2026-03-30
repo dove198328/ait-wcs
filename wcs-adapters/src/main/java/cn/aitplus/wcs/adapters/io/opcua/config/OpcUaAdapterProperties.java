@@ -28,6 +28,9 @@ public class OpcUaAdapterProperties {
      */
     private String securityPolicy = "None";
 
+    /** 安全模式：None / Sign / SignAndEncrypt */
+    private String messageSecurityMode = "None";
+
     /** 可选；空则匿名 */
     private String username = "";
 
@@ -47,9 +50,6 @@ public class OpcUaAdapterProperties {
      * 复用连接前是否读取标准节点 Server_ServerStatus_State 做应用层探活；false 则仅依赖会话 Future。
      */
     private boolean sessionProbeEnabled = true;
-
-    /** 会话探活读超时（毫秒） */
-    private long sessionProbeTimeoutMillis = 3_000L;
 
     /**
      * 连接空闲超过该毫秒数则下次借用前断开重连；0 表示不启用空闲淘汰。
@@ -72,8 +72,35 @@ public class OpcUaAdapterProperties {
     /** 创建 Subscription 时的 requestedPublishingInterval（毫秒，OPC UA 双精度） */
     private double subscriptionPublishingIntervalMillis = 1_000.0;
 
+    /** requestedMaxKeepAliveCount */
+    private long subscriptionMaxKeepAliveCount = 10L;
+
+    /** requestedLifetimeCount，建议大于等于 3 倍 keepAliveCount */
+    private long subscriptionLifetimeCount = 60L;
+
+    /** requestedMaxNotificationsPerPublish，0 表示由服务端决定 */
+    private long subscriptionMaxNotificationsPerPublish = 0L;
+
+    /** Subscription priority */
+    private int subscriptionPriority = 0;
+
     /**
-     * 单次 createMonitoredItems 请求的项数上限，超出则拆批（与 maxNodesPerServiceCall 可分开配置）。
+     * 映射到 Milo {@link org.eclipse.milo.opcua.sdk.client.subscriptions.OpcUaSubscription#setTargetKeepAliveInterval(double)}：
+     * 期望的订阅 keep-alive 时间间隔（毫秒）。大于 0 时由 Milo 根据 {@link #subscriptionPublishingIntervalMillis} 推导
+     * {@code MaxKeepAliveCount}/{@code LifetimeCount}，此时不再使用 {@link #subscriptionMaxKeepAliveCount}、{@link #subscriptionLifetimeCount}。
+     * 小于等于 0 时关闭该推导，仅使用上述 count 配置。
      */
-    private int maxMonitoredItemsPerCreateBatch = 200;
+    private long subscriptionWatchdogIntervalMillis = 0L;
+
+    /**
+     * Milo {@link org.eclipse.milo.opcua.sdk.client.subscriptions.OpcUaSubscription#setWatchdogMultiplier(double)}：
+     * 客户端在修订发布间隔基础上判定「过久无 publish 活动」的倍数（与上项 OPC keep-alive 语义不同）。
+     */
+    private long subscriptionWatchdogSilenceMultiplier = 3L;
+
+    /** 订阅重建初始延迟 */
+    private long rebuildInitialDelayMillis = 500L;
+
+    /** 订阅重建最大延迟 */
+    private long rebuildMaxDelayMillis = 30_000L;
 }

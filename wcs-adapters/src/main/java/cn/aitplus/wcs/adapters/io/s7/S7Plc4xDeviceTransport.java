@@ -392,13 +392,13 @@ public class S7Plc4xDeviceTransport implements DeviceTransport, Ordered {
         return DeviceIoResult.ok(objectMapper.writeValueAsString(payload));
     }
 
-    private static String buildConnectionUrl(DeviceEndpoint endpoint) {
+    private String buildConnectionUrl(DeviceEndpoint endpoint) {
         int port = endpoint.getPort() > 0 ? endpoint.getPort() : 102;
         int rack = endpoint.getRack() != null ? endpoint.getRack() : 0;
         int slot = endpoint.getSlot() != null ? endpoint.getSlot() : 1;
         return String.format(
             Locale.ROOT,
-            "s7://%s:%d?rack=%d&slot=%d",
+            "s7://%s:%d?remote-rack=%d&remote-slot=%d&field-optimization=true",
             endpoint.getHost().trim(),
             port,
             rack,

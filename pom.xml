@@ -33,9 +33,8 @@
         <disruptor.version>4.0.0</disruptor.version>
         <protobuf.version>4.33.0</protobuf.version>
         <guava.version>33.5.0-jre</guava.version>
-        <!-- Eclipse Milo：Maven Central 上旧坐标 org.eclipse.milo:sdk-client 最新 release 为 0.6.16（search.maven.org 校验）；
-             新一代 BOM 坐标为 org.eclipse.milo:milo-opc-ua-sdk / milo-sdk-client（如 1.0.0），包与 API 不同，升级需单独改造。 -->
-        <opcua.version>0.6.16</opcua.version>
+        <!-- Eclipse Milo 1.x：import milo-bom，业务模块依赖 milo-sdk-client（与 0.6 坐标/API 不同）。 -->
+        <opcua.version>1.1.1</opcua.version>
         <redis.version>3.17.2</redis.version>
         <opengauss.version>6.0.0</opengauss.version>
         <fastjson2.version>2.0.47</fastjson2.version>
@@ -189,7 +188,15 @@
 
             <dependency>
                 <groupId>org.eclipse.milo</groupId>
-                <artifactId>sdk-client</artifactId>
+                <artifactId>milo-bom</artifactId>
+                <version>${opcua.version}</version>
+                <type>pom</type>
+                <scope>import</scope>
+            </dependency>
+
+            <dependency>
+                <groupId>org.eclipse.milo</groupId>
+                <artifactId>milo-sdk-client</artifactId>
                 <version>${opcua.version}</version>
             </dependency>
 
