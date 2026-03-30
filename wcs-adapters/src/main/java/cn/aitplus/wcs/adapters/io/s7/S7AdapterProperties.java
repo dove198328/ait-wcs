@@ -22,10 +22,7 @@ public class S7AdapterProperties {
 
     private long reconnectMaxDelayMillis = 30_000L;
 
-    /** 心跳周期（毫秒）；≤0 表示关闭 */
-    private long heartbeatIntervalMillis = 0L;
-
-    /** 心跳周期读地址（PLC4X 地址串） */
+    /** 读探测用地址（PLC4X）：借用前与定时巡检读探测共用；不向 PLC 写。 */
     private String heartbeatReadAddress = "";
 
     /**
@@ -38,8 +35,13 @@ public class S7AdapterProperties {
     private long borrowProbeTimeoutMillis = 3_000L;
 
     /**
-     * 定时巡检间隔（毫秒）：对池中连接做 isConnected + 借用探测；≤0 关闭。
-     * 与心跳互补，避免长期无流量时假活不被发现。
+     * 定时巡检间隔（毫秒）：对池中连接做 isConnected、可选写 PLC 心跳位、与借用相同的读探测；≤0 关闭。
      */
-    private long staleCheckIntervalMillis = 60_000L;
+    private long staleCheckIntervalMillis = 2_000L;
+
+    /**
+     * 巡检时向 PLC 写入的 BOOL 地址（PLC4X 地址串）；空表示不写。
+     * 每次巡检在该地址写入交替的 false/true（0/1），供 PLC 侧判断 WCS 存活；与 {@link #heartbeatReadAddress} 的读探测（WCS 侧）正交。
+     */
+    private String staleCheckPlcHeartbeatWriteAddress = "";
 }

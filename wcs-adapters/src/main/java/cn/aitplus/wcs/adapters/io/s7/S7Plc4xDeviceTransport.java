@@ -26,7 +26,6 @@ import java.util.Locale;
 import java.util.Map;
 import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.Executors;
-import java.util.concurrent.RejectedExecutionException;
 import java.util.concurrent.ScheduledExecutorService;
 import java.util.concurrent.ScheduledFuture;
 import java.util.concurrent.TimeUnit;
@@ -70,10 +69,10 @@ public class S7Plc4xDeviceTransport implements DeviceTransport, Ordered {
         this.objectMapper = objectMapper;
         this.connectionManager = connectionManager;
         this.scheduler = scheduler;
-        long staleMs = properties.getStaleCheckIntervalMillis();
-        if (staleMs > 0) {
+        long sweepMs = properties.getStaleCheckIntervalMillis();
+        if (sweepMs > 0) {
             this.staleSweepTask = scheduler.scheduleAtFixedRate(
-                this::sweepStaleConnections, staleMs, staleMs, TimeUnit.MILLISECONDS);
+                this::sweepStaleConnections, sweepMs, sweepMs, TimeUnit.MILLISECONDS);
         }
     }
 
@@ -217,7 +216,6 @@ public class S7Plc4xDeviceTransport implements DeviceTransport, Ordered {
                     fresh.connect();
                     synchronized (managed.lock) {
                         ensureNotDestroyed();
-                        scheduleHeartbeatIfNeeded(key, managed);
                         managed.connection = fresh;
                         managed.connecting = false;
                         managed.lock.notifyAll();
@@ -225,9 +223,6 @@ public class S7Plc4xDeviceTransport implements DeviceTransport, Ordered {
                     }
                 } catch (Exception ex) {
                     closeQuietly(fresh);
-                    synchronized (managed.lock) {
-                        cancelHeartbeat(managed);
-                    }
                     last = ex;
                     LOG.debug("S7 connect attempt {}/{} failed", i + 1, maxTries, ex);
                     if (i + 1 < maxTries) {
@@ -251,6 +246,7 @@ public class S7Plc4xDeviceTransport implements DeviceTransport, Ordered {
         throw new IllegalStateException("S7 connect failed");
     }
 
+    /** 连接读探测：仅 ping / 读 {@link S7AdapterProperties#getHeartbeatReadAddress()}，不向 PLC 写巡检心跳位。 */
     private boolean probeConnectionHealthy(PlcConnection conn) {
         long probeMs = properties.getBorrowProbeTimeoutMillis() > 0
             ? properties.getBorrowProbeTimeoutMillis()
@@ -293,7 +289,6 @@ public class S7Plc4xDeviceTransport implements DeviceTransport, Ordered {
     private void teardownConnection(ConnectionKey key, ManagedConnection managed, String reason) {
         PlcConnection c = managed.connection;
         managed.connection = null;
-        cancelHeartbeat(managed);
         if (c != null) {
             LOG.info("S7 connection teardown key={} reason={}", key, reason);
             closeQuietly(c);
@@ -301,6 +296,9 @@ public class S7Plc4xDeviceTransport implements DeviceTransport, Ordered {
         tryEvictIdleManaged(key, managed);
     }
 
+    /**
+     * 统一周期巡检：仅在此路径执行「写 PLC 心跳位」（若配置）；借用连接做业务/探测时 {@link #probeConnectionHealthy} 只读不写。
+     */
     private void sweepStaleConnections() {
         for (Map.Entry<ConnectionKey, ManagedConnection> entry : pool.entrySet()) {
             ConnectionKey key = entry.getKey();
@@ -315,49 +313,33 @@ public class S7Plc4xDeviceTransport implements DeviceTransport, Ordered {
                     teardownConnection(key, managed, "Scheduled stale check found disconnected connection");
                     continue;
                 }
-                if (properties.isBorrowProbeEnabled() && !probeConnectionHealthy(conn)) {
+                if (StringUtils.hasText(properties.getStaleCheckPlcHeartbeatWriteAddress())) {
+                    try {
+                        staleCheckWritePlcHeartbeatBit(conn, managed);
+                    } catch (Exception e) {
+                        LOG.debug("S7 stale check PLC heartbeat write failed key={}", key, e);
+                        teardownConnection(key, managed, "Scheduled stale check PLC heartbeat write failed");
+                        continue;
+                    }
+                }
+                if (!probeConnectionHealthy(conn)) {
                     teardownConnection(key, managed, "Scheduled stale check probe failed");
                 }
             }
         }
     }
 
-    private void scheduleHeartbeatIfNeeded(ConnectionKey key, ManagedConnection managed) {
-        long interval = properties.getHeartbeatIntervalMillis();
-        String addr = properties.getHeartbeatReadAddress();
-        if (interval <= 0 || !StringUtils.hasText(addr)) {
-            return;
-        }
-        ensureNotDestroyed();
-        cancelHeartbeat(managed);
-        long hbTimeout = Math.max(1000L, properties.getDefaultRequestTimeoutMillis());
-        try {
-            managed.heartbeatTask = scheduler.scheduleAtFixedRate(() -> {
-                try {
-                    synchronized (managed.lock) {
-                        if (managed.connection == null || !managed.connection.isConnected()) {
-                            return;
-                        }
-                        PlcReadRequest req = managed.connection.readRequestBuilder().addTagAddress("hb", addr).build();
-                        req.execute().get(hbTimeout, TimeUnit.MILLISECONDS);
-                    }
-                } catch (Exception e) {
-                    LOG.warn("S7 heartbeat failed key={}", key, e);
-                    synchronized (managed.lock) {
-                        teardownConnection(key, managed, "Heartbeat failed");
-                    }
-                }
-            }, interval, interval, TimeUnit.MILLISECONDS);
-        } catch (RejectedExecutionException e) {
-            throw new IllegalStateException("Failed to schedule S7 heartbeat", e);
-        }
-    }
-
-    private static void cancelHeartbeat(ManagedConnection managed) {
-        if (managed.heartbeatTask != null) {
-            managed.heartbeatTask.cancel(false);
-            managed.heartbeatTask = null;
-        }
+    /**
+     * 巡检专用：向 PLC 写入交替 BOOL，供对端识别 WCS 存活；须在 {@code managed.lock} 内调用。
+     */
+    private void staleCheckWritePlcHeartbeatBit(PlcConnection conn, ManagedConnection managed) throws Exception {
+        String addr = properties.getStaleCheckPlcHeartbeatWriteAddress();
+        long timeoutMs = Math.max(500L, properties.getDefaultRequestTimeoutMillis());
+        boolean bit = (managed.stalePlcHeartbeatWritePhase++ & 1) == 1;
+        PlcWriteRequest req = conn.writeRequestBuilder()
+            .addTagAddress("stalePlcHb", addr, bit)
+            .build();
+        req.execute().get(timeoutMs, TimeUnit.MILLISECONDS);
     }
 
     private static void closeQuietly(PlcConnection c) {
@@ -473,8 +455,9 @@ public class S7Plc4xDeviceTransport implements DeviceTransport, Ordered {
     private static final class ManagedConnection {
         private final Object lock = new Object();
         private PlcConnection connection;
-        private ScheduledFuture<?> heartbeatTask;
         private int borrowers;
         private boolean connecting;
+        /** 巡检写 PLC 心跳：递增后按奇偶写 false/true，首帧为 0 */
+        private int stalePlcHeartbeatWritePhase;
     }
 }

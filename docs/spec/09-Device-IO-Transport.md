@@ -32,10 +32,9 @@
 
 ## 6. S7（`wcs.adapter.s7`）健康检查与自动恢复（摘要）
 
-- **借用前探测**：默认开启；优先 `ping`，失败时可配合 **`heartbeat-read-address`** 做一次读点探测；探测失败则丢弃该 `ConnectionKey` 下缓存连接，**随后在本次请求内按退避策略重连**。
-- **心跳**：周期读失败则 **丢弃连接**（不再仅打日志），下次业务请求走重连。
+- **借用前探测**：默认开启；优先 `ping`，失败时可配合 **`heartbeat-read-address`** 做一次**读**点探测；**不向 PLC 写巡检心跳位**。探测失败则丢弃该 `ConnectionKey` 下缓存连接，**随后在本次请求内按退避策略重连**。
 - **业务 IO 失败**：丢弃连接，避免假活会话继续复用。
-- **定时巡检**：可选（`stale-check-interval-millis`），对池中连接做 `isConnected` + 与借用相同的探测逻辑，减轻长期无流量时的假活。
+- **定时巡检（唯一周期）**：仅由 **`stale-check-interval-millis`** 驱动（毫秒，≤0 关闭）。每周期对池中连接：`isConnected` → 可选 **`stale-check-plc-heartbeat-write-address`** 向 PLC **写**交替 0/1（BOOL，供 PLC 识别 WCS 存活）→ 与借用相同的**读探测**（WCS 侧确认链路）。写失败或读探测失败均丢弃连接。
 - **并发**：同一 `ConnectionKey` 上 **探测 + 业务 IO 在同一把锁内串行**，避免多线程共一条 `PlcConnection`。
 - **临时连接**：`S7Plc4xDeviceTransport#executeWithNewConnection` 不经池，单次建连、读写、`finally` 关闭；供隔离调试或特殊任务使用（需直接注入该 Bean）。
 

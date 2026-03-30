@@ -13,7 +13,7 @@ import org.springframework.stereotype.Component;
  */
 @Component
 @Order(Ordered.LOWEST_PRECEDENCE)
-public class RcsHttpStubTransport implements DeviceTransport {
+public class HttpStubTransport implements DeviceTransport {
 
     @Override
     public boolean supports(DomainEnums.CommandDomain domain) {
