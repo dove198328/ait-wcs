@@ -79,3 +79,7 @@ wms:
   api:
     # warehouseId 为逗号分隔多仓；由 WmsSyncDeviceWarehouseIdsEnvironmentPostProcessor 从 wcs.workflow.allowedWarehouseIds 推导 wms.api.sync-device-warehouse-ids
     sync_device: ${wms.url}/base/biDeviceManagement/deviceSyncList?warehouseId=${wms.api.sync-device-warehouse-ids}
+  # 同步的dir
+  sync_points_dir:
+    - device/points/
+    - device/39/
