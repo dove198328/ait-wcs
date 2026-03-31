@@ -71,3 +71,11 @@ mqtt:
     alarm: device/alarms
     # 状态主题
     status: device/status
+
+wms:
+  url: http://localhost:9020
+  # 这里的upload是拍照完成上传
+  upload: http://localhost:8000/uploads/
+  api:
+    # warehouseId 为逗号分隔多仓；由 WmsSyncDeviceWarehouseIdsEnvironmentPostProcessor 从 wcs.workflow.allowedWarehouseIds 推导 wms.api.sync-device-warehouse-ids
+    sync_device: ${wms.url}/base/biDeviceManagement/deviceSyncList?warehouseId=${wms.api.sync-device-warehouse-ids}
