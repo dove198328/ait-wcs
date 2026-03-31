@@ -1,2 +1,2 @@
 org.springframework.boot.env.EnvironmentPostProcessor=\
-cn.aitplus.wcs.app.config.WmsSyncDeviceWarehouseIdsEnvironmentPostProcessor
+cn.aitplus.wcs.app.metainfoprocess.WmsSyncDeviceWarehouseIdsEnvironmentPostProcessor

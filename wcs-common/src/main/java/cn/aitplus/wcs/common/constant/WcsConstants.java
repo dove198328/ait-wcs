@@ -30,4 +30,9 @@ public final class WcsConstants {
      * Redis 设备配置键前缀；与 WMS 同步写入的 JSON 对象共用此前缀，便于后续设备 IO/状态读取。
      */
     public static final String DEVICE_CONFIG_KEY_PREFIX = "device:config:";
+
+    /**
+     * Redis 设备点位配置键前缀；值为从 YAML 转成的 JSON 字符串。
+     */
+    public static final String DEVICE_POINTS_CONFIG_KEY_PREFIX = "device:points:config:";
 }
