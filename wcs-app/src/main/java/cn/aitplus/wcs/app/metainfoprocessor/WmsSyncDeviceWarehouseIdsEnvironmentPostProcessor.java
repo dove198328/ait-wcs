@@ -1,4 +1,4 @@
-package cn.aitplus.wcs.app.metainfoprocess;
+package cn.aitplus.wcs.app.metainfoprocessor;
 
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
