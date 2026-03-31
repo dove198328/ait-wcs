@@ -2,6 +2,9 @@
 # 仅放适配器侧默认参数；环境开关等在 wcs-app 中覆盖。
 wcs:
   adapter:
+    http:
+      enabled: true
+      default-request-timeout-millis: 5000
     s7:
       enabled: true
       default-request-timeout-millis: 5000
