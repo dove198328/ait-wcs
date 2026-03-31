@@ -25,4 +25,9 @@ public final class WcsConstants {
 
     /** 缓存条目 key 中仓库维度与业务段之间的分隔符（与区域名里的冒号无关） */
     public static final String CACHE_KEY_SEPARATOR = ":";
+
+    /**
+     * Redis 设备配置键前缀；与 WMS 同步写入的 JSON 对象共用此前缀，便于后续设备 IO/状态读取。
+     */
+    public static final String DEVICE_CONFIG_KEY_PREFIX = "device:config:";
 }
