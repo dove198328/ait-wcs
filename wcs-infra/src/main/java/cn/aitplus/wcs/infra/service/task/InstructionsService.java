@@ -1,7 +1,7 @@
 package cn.aitplus.wcs.infra.service.task;
 
 import com.baomidou.mybatisplus.core.metadata.IPage;
-import cn.aitplus.wcs.core.domain.model.Instruction;
+import cn.aitplus.wcs.core.domain.model.task.Instruction;
 
 import java.util.List;
 

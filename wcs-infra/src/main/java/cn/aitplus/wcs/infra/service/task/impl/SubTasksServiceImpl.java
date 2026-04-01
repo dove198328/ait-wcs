@@ -1,10 +1,10 @@
 package cn.aitplus.wcs.infra.service.task.impl;
 
-import cn.aitplus.wcs.core.domain.model.Instruction;
+import cn.aitplus.wcs.core.domain.model.task.Instruction;
 import cn.aitplus.wcs.infra.service.task.InstructionsService;
 import com.baomidou.mybatisplus.core.conditions.query.LambdaQueryWrapper;
 import com.baomidou.mybatisplus.core.metadata.IPage;
-import cn.aitplus.wcs.core.domain.model.SubTask;
+import cn.aitplus.wcs.core.domain.model.task.SubTask;
 import cn.aitplus.wcs.infra.persistence.task.SubTasksMapper;
 import cn.aitplus.wcs.infra.service.task.SubTasksService;
 import com.baomidou.mybatisplus.core.toolkit.Wrappers;
@@ -17,7 +17,6 @@ import java.time.LocalDateTime;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.Map;
-import java.util.concurrent.locks.Lock;
 import java.util.stream.Collectors;
 
 @Service

@@ -1,6 +1,6 @@
 package cn.aitplus.wcs.infra.persistence.execution;
 
-import cn.aitplus.wcs.core.domain.model.CommandExecution;
+import cn.aitplus.wcs.core.domain.model.execution.CommandExecution;
 import com.baomidou.mybatisplus.core.metadata.IPage;
 import org.apache.ibatis.annotations.Param;
 

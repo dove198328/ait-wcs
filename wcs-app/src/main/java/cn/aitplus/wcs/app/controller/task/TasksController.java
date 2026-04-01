@@ -3,7 +3,7 @@ package cn.aitplus.wcs.app.controller.task;
 import cn.aitplus.wcs.common.domain.AjaxResult;
 import cn.aitplus.wcs.common.domain.page.PageUtils;
 import cn.aitplus.wcs.common.domain.page.TableDataInfo;
-import cn.aitplus.wcs.core.domain.model.Task;
+import cn.aitplus.wcs.core.domain.model.task.Task;
 import cn.aitplus.wcs.infra.service.task.TasksService;
 import com.baomidou.mybatisplus.core.metadata.IPage;
 import com.baomidou.mybatisplus.extension.plugins.pagination.Page;

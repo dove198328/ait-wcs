@@ -1,6 +1,6 @@
 package cn.aitplus.wcs.infra.persistence.task;
 
-import cn.aitplus.wcs.core.domain.model.WorkflowDefinition;
+import cn.aitplus.wcs.core.domain.model.workflow.WorkflowDefinition;
 import com.baomidou.mybatisplus.core.mapper.BaseMapper;
 import com.baomidou.mybatisplus.core.metadata.IPage;
 import org.apache.ibatis.annotations.Mapper;

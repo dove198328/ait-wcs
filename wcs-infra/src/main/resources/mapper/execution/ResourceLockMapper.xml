@@ -4,7 +4,7 @@
         "http://mybatis.org/dtd/mybatis-3-mapper.dtd">
 <mapper namespace="cn.aitplus.wcs.infra.persistence.execution.ResourceLockMapper">
 
-    <resultMap id="ResourceLockResultMap" type="cn.aitplus.wcs.core.domain.model.ResourceLock">
+    <resultMap id="ResourceLockResultMap" type="cn.aitplus.wcs.core.domain.model.execution.ResourceLock">
         <result property="id" column="id"/>
         <result property="warehouseId" column="warehouse_id"/>
         <result property="lockKey" column="lock_key"/>
@@ -105,7 +105,7 @@
           and (status != 'HELD' or expire_at is null or expire_at &lt;= #{now})
     </update>
 
-    <insert id="insertIfAbsent" parameterType="cn.aitplus.wcs.core.domain.model.ResourceLock">
+    <insert id="insertIfAbsent" parameterType="cn.aitplus.wcs.core.domain.model.execution.ResourceLock">
         <choose>
             <when test="_databaseId == 'sqlserver'">
                 insert into wcs_resource_lock (warehouse_id, lock_key, owner_type, owner_id, status, expire_at, created_at, updated_at)

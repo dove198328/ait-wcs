@@ -1,9 +1,11 @@
 package cn.aitplus.wcs.core.domain.enums;
 
+import cn.aitplus.wcs.core.domain.model.task.Task;
+
 /**
  * 主任务在库中的 {@code tasks.status} 取值约定。
  * <p>
- * 实体 {@link cn.aitplus.wcs.core.domain.model.Task#getStatus()} 仍为 {@link String}，
+ * 实体 {@link Task#getStatus()} 仍为 {@link String}，
  * 业务侧比较、赋值、查询条件请统一使用 {@code TaskStatus.XXX.getValue()}，避免散落字面量。
  */
 public enum TaskStatus {

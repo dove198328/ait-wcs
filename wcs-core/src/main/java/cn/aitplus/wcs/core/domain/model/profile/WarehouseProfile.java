@@ -1,4 +1,4 @@
-package cn.aitplus.wcs.core.domain.model;
+package cn.aitplus.wcs.core.domain.model.profile;
 
 import io.swagger.annotations.ApiModel;
 import io.swagger.annotations.ApiModelProperty;

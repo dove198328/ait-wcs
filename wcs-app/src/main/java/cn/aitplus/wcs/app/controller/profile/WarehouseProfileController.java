@@ -1,8 +1,8 @@
 package cn.aitplus.wcs.app.controller.profile;
 
 import cn.aitplus.wcs.common.domain.AjaxResult;
-import cn.aitplus.wcs.core.domain.model.ProfileChainNode;
-import cn.aitplus.wcs.core.domain.model.WarehouseProfile;
+import cn.aitplus.wcs.core.domain.model.profile.ProfileChainNode;
+import cn.aitplus.wcs.core.domain.model.profile.WarehouseProfile;
 import cn.aitplus.wcs.infra.service.profile.WarehouseProfileService;
 import io.swagger.annotations.Api;
 import io.swagger.annotations.ApiOperation;

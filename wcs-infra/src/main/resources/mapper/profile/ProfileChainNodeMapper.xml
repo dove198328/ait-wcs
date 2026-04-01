@@ -4,7 +4,7 @@
         "http://mybatis.org/dtd/mybatis-3-mapper.dtd">
 <mapper namespace="cn.aitplus.wcs.infra.persistence.profile.ProfileChainNodeMapper">
 
-    <resultMap id="ChainNodeResultMap" type="cn.aitplus.wcs.core.domain.model.ProfileChainNode">
+    <resultMap id="ChainNodeResultMap" type="cn.aitplus.wcs.core.domain.model.profile.ProfileChainNode">
         <result property="id" column="id"/>
         <result property="warehouseId" column="warehouse_id"/>
         <result property="chainName" column="chain_name"/>
@@ -72,7 +72,7 @@
         </choose>
     </select>
 
-    <insert id="insert" parameterType="cn.aitplus.wcs.core.domain.model.ProfileChainNode" useGeneratedKeys="true" keyProperty="id">
+    <insert id="insert" parameterType="cn.aitplus.wcs.core.domain.model.profile.ProfileChainNode" useGeneratedKeys="true" keyProperty="id">
         <choose>
             <when test="_databaseId == 'sqlserver'">
                 insert into wcs_profile_chain_node (warehouse_id, chain_name, node_order, bean_name, enabled, created_at, updated_at)
@@ -103,7 +103,7 @@
         </choose>
     </insert>
 
-    <update id="update" parameterType="cn.aitplus.wcs.core.domain.model.ProfileChainNode">
+    <update id="update" parameterType="cn.aitplus.wcs.core.domain.model.profile.ProfileChainNode">
         update wcs_profile_chain_node
         <set>
             <if test="beanName != null">bean_name = #{beanName},</if>

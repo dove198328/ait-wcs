@@ -1,5 +1,7 @@
-package cn.aitplus.wcs.core.domain.model;
+package cn.aitplus.wcs.core.domain.model.workflow;
 
+import cn.aitplus.wcs.core.domain.model.task.SubtaskDefinition;
+import cn.aitplus.wcs.core.domain.model.task.TaskDefinition;
 import cn.hutool.core.util.StrUtil;
 import com.baomidou.mybatisplus.annotation.*;
 import com.alibaba.fastjson2.JSONObject;

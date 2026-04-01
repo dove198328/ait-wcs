@@ -1,7 +1,7 @@
 package cn.aitplus.wcs.infra.service.profile;
 
-import cn.aitplus.wcs.core.domain.model.ProfileChainNode;
-import cn.aitplus.wcs.core.domain.model.WarehouseProfile;
+import cn.aitplus.wcs.core.domain.model.profile.ProfileChainNode;
+import cn.aitplus.wcs.core.domain.model.profile.WarehouseProfile;
 
 import java.util.List;
 

@@ -1,6 +1,6 @@
 package cn.aitplus.wcs.core.spi.context;
 
-import cn.aitplus.wcs.core.domain.model.Task;
+import cn.aitplus.wcs.core.domain.model.task.Task;
 import java.util.ArrayList;
 import java.util.List;
 import lombok.Data;

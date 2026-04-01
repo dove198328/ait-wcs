@@ -1,4 +1,4 @@
-package cn.aitplus.wcs.core.domain.model;
+package cn.aitplus.wcs.core.domain.model.task;
 
 import com.baomidou.mybatisplus.annotation.*;
 import io.swagger.annotations.ApiModel;

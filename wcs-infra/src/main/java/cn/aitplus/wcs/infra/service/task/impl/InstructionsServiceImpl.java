@@ -2,7 +2,7 @@ package cn.aitplus.wcs.infra.service.task.impl;
 
 import com.baomidou.mybatisplus.core.conditions.query.LambdaQueryWrapper;
 import com.baomidou.mybatisplus.core.metadata.IPage;
-import cn.aitplus.wcs.core.domain.model.Instruction;
+import cn.aitplus.wcs.core.domain.model.task.Instruction;
 import cn.aitplus.wcs.infra.persistence.task.InstructionsMapper;
 import cn.aitplus.wcs.infra.service.task.InstructionsService;
 import com.baomidou.mybatisplus.core.toolkit.Wrappers;

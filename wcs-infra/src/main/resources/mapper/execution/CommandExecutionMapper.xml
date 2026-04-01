@@ -4,7 +4,7 @@
         "http://mybatis.org/dtd/mybatis-3-mapper.dtd">
 <mapper namespace="cn.aitplus.wcs.infra.persistence.execution.CommandExecutionMapper">
 
-    <resultMap id="CommandExecutionResultMap" type="cn.aitplus.wcs.core.domain.model.CommandExecution">
+    <resultMap id="CommandExecutionResultMap" type="cn.aitplus.wcs.core.domain.model.execution.CommandExecution">
         <result property="id" column="id"/>
         <result property="warehouseId" column="warehouse_id"/>
         <result property="taskId" column="task_id"/>
@@ -118,7 +118,7 @@
         </choose>
     </select>
 
-    <insert id="insert" parameterType="cn.aitplus.wcs.core.domain.model.CommandExecution" useGeneratedKeys="true" keyProperty="id">
+    <insert id="insert" parameterType="cn.aitplus.wcs.core.domain.model.execution.CommandExecution" useGeneratedKeys="true" keyProperty="id">
         <choose>
             <when test="_databaseId == 'sqlserver'">
                 insert into wcs_command_execution (
@@ -143,7 +143,7 @@
         </choose>
     </insert>
 
-    <update id="updateById" parameterType="cn.aitplus.wcs.core.domain.model.CommandExecution">
+    <update id="updateById" parameterType="cn.aitplus.wcs.core.domain.model.execution.CommandExecution">
         update wcs_command_execution
         <set>
             <if test="taskId != null">task_id = #{taskId},</if>

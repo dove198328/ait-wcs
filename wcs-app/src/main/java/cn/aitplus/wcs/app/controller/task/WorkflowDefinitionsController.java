@@ -3,7 +3,7 @@ package cn.aitplus.wcs.app.controller.task;
 import cn.aitplus.wcs.common.domain.AjaxResult;
 import cn.aitplus.wcs.common.domain.page.PageUtils;
 import cn.aitplus.wcs.common.domain.page.TableDataInfo;
-import cn.aitplus.wcs.core.domain.model.WorkflowDefinition;
+import cn.aitplus.wcs.core.domain.model.workflow.WorkflowDefinition;
 import cn.aitplus.wcs.infra.service.task.WorkflowDefinitionsService;
 import cn.aitplus.wcs.workflow.service.WorkflowDefinitionCommandService;
 import com.baomidou.mybatisplus.core.metadata.IPage;

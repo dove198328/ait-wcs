@@ -3,7 +3,7 @@ package cn.aitplus.wcs.app.controller.execution;
 import cn.aitplus.wcs.common.domain.AjaxResult;
 import cn.aitplus.wcs.common.domain.page.PageUtils;
 import cn.aitplus.wcs.common.domain.page.TableDataInfo;
-import cn.aitplus.wcs.core.domain.model.ResourceLock;
+import cn.aitplus.wcs.core.domain.model.execution.ResourceLock;
 import cn.aitplus.wcs.infra.service.execution.ResourceLockService;
 import com.baomidou.mybatisplus.core.metadata.IPage;
 import com.baomidou.mybatisplus.extension.plugins.pagination.Page;

@@ -3,7 +3,7 @@ package cn.aitplus.wcs.app.controller.execution;
 import cn.aitplus.wcs.common.domain.AjaxResult;
 import cn.aitplus.wcs.common.domain.page.PageUtils;
 import cn.aitplus.wcs.common.domain.page.TableDataInfo;
-import cn.aitplus.wcs.core.domain.model.CommandExecution;
+import cn.aitplus.wcs.core.domain.model.execution.CommandExecution;
 import cn.aitplus.wcs.infra.service.execution.CommandExecutionService;
 import com.baomidou.mybatisplus.core.metadata.IPage;
 import com.baomidou.mybatisplus.extension.plugins.pagination.Page;
@@ -18,8 +18,6 @@ import org.springframework.web.bind.annotation.RequestBody;
 import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RequestParam;
 import org.springframework.web.bind.annotation.RestController;
-
-import java.util.List;
 
 @RestController
 @Api(tags = "指令执行审计")

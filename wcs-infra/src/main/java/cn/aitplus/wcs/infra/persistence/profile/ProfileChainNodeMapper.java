@@ -1,6 +1,6 @@
 package cn.aitplus.wcs.infra.persistence.profile;
 
-import cn.aitplus.wcs.core.domain.model.ProfileChainNode;
+import cn.aitplus.wcs.core.domain.model.profile.ProfileChainNode;
 import org.apache.ibatis.annotations.Param;
 
 import java.util.List;

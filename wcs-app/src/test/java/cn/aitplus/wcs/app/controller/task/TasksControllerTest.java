@@ -1,6 +1,6 @@
 package cn.aitplus.wcs.app.controller.task;
 
-import cn.aitplus.wcs.core.domain.model.Task;
+import cn.aitplus.wcs.core.domain.model.task.Task;
 import org.junit.jupiter.api.*;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.test.context.SpringBootTest;

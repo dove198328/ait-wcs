@@ -1,6 +1,6 @@
 package cn.aitplus.wcs.app.controller.task;
 
-import cn.aitplus.wcs.core.domain.model.WorkflowDefinition;
+import cn.aitplus.wcs.core.domain.model.workflow.WorkflowDefinition;
 import com.fasterxml.jackson.databind.JsonNode;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import org.junit.jupiter.api.*;

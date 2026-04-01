@@ -4,7 +4,7 @@
         "http://mybatis.org/dtd/mybatis-3-mapper.dtd">
 <mapper namespace="cn.aitplus.wcs.infra.persistence.profile.WarehouseProfileMapper">
 
-    <resultMap id="ProfileResultMap" type="cn.aitplus.wcs.core.domain.model.WarehouseProfile">
+    <resultMap id="ProfileResultMap" type="cn.aitplus.wcs.core.domain.model.profile.WarehouseProfile">
         <result property="id" column="id"/>
         <result property="warehouseId" column="warehouse_id"/>
         <result property="warehouseType" column="warehouse_type"/>
@@ -50,7 +50,7 @@
         </choose>
     </select>
 
-    <insert id="insert" parameterType="cn.aitplus.wcs.core.domain.model.WarehouseProfile" useGeneratedKeys="true" keyProperty="id">
+    <insert id="insert" parameterType="cn.aitplus.wcs.core.domain.model.profile.WarehouseProfile" useGeneratedKeys="true" keyProperty="id">
         <choose>
             <when test="_databaseId == 'sqlserver'">
                 insert into wcs_warehouse_profile (warehouse_id, warehouse_type, enabled_plugins_json, params_json, version, active, created_at, updated_at)
@@ -63,7 +63,7 @@
         </choose>
     </insert>
 
-    <update id="update" parameterType="cn.aitplus.wcs.core.domain.model.WarehouseProfile">
+    <update id="update" parameterType="cn.aitplus.wcs.core.domain.model.profile.WarehouseProfile">
         update wcs_warehouse_profile
         <set>
             <if test="warehouseType != null">warehouse_type = #{warehouseType},</if>

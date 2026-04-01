@@ -1,6 +1,6 @@
 package cn.aitplus.wcs.infra.persistence.task;
 
-import cn.aitplus.wcs.core.domain.model.SubTask;
+import cn.aitplus.wcs.core.domain.model.task.SubTask;
 import com.baomidou.mybatisplus.core.mapper.BaseMapper;
 import com.baomidou.mybatisplus.core.metadata.IPage;
 import org.apache.ibatis.annotations.Param;

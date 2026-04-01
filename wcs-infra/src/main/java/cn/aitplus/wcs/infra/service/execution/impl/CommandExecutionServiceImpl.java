@@ -1,6 +1,6 @@
 package cn.aitplus.wcs.infra.service.execution.impl;
 
-import cn.aitplus.wcs.core.domain.model.CommandExecution;
+import cn.aitplus.wcs.core.domain.model.execution.CommandExecution;
 import cn.aitplus.wcs.infra.persistence.execution.CommandExecutionMapper;
 import cn.aitplus.wcs.infra.service.execution.CommandExecutionService;
 import com.baomidou.mybatisplus.core.metadata.IPage;

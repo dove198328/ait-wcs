@@ -1,4 +1,4 @@
-package cn.aitplus.wcs.core.domain.model;
+package cn.aitplus.wcs.core.domain.model.profile;
 
 import com.baomidou.mybatisplus.annotation.IdType;
 import com.baomidou.mybatisplus.annotation.TableId;

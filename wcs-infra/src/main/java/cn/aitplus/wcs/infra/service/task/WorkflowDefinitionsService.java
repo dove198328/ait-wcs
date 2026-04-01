@@ -1,6 +1,6 @@
 package cn.aitplus.wcs.infra.service.task;
 
-import cn.aitplus.wcs.core.domain.model.WorkflowDefinition;
+import cn.aitplus.wcs.core.domain.model.workflow.WorkflowDefinition;
 import com.baomidou.mybatisplus.core.metadata.IPage;
 
 import java.util.List;

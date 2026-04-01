@@ -1,6 +1,6 @@
 package cn.aitplus.wcs.infra.persistence.profile;
 
-import cn.aitplus.wcs.core.domain.model.WarehouseProfile;
+import cn.aitplus.wcs.core.domain.model.profile.WarehouseProfile;
 import org.apache.ibatis.annotations.Param;
 
 import java.util.List;

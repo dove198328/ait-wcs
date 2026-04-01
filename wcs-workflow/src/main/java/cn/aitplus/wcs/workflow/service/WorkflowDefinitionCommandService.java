@@ -1,8 +1,8 @@
 package cn.aitplus.wcs.workflow.service;
 
 import cn.aitplus.wcs.common.constant.WcsConstants;
-import cn.aitplus.wcs.core.domain.model.TaskDefinition;
-import cn.aitplus.wcs.core.domain.model.WorkflowDefinition;
+import cn.aitplus.wcs.core.domain.model.task.TaskDefinition;
+import cn.aitplus.wcs.core.domain.model.workflow.WorkflowDefinition;
 import cn.aitplus.wcs.infra.service.task.TasksService;
 import cn.aitplus.wcs.infra.service.task.WorkflowDefinitionsService;
 import cn.aitplus.wcs.workflow.support.WarehouseTenantSupport;

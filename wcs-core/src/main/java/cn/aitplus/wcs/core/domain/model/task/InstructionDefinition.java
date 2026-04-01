@@ -1,5 +1,6 @@
-package cn.aitplus.wcs.core.domain.model;
+package cn.aitplus.wcs.core.domain.model.task;
 
+import cn.aitplus.wcs.core.domain.model.execution.Command;
 import lombok.AllArgsConstructor;
 import lombok.Builder;
 import lombok.Data;

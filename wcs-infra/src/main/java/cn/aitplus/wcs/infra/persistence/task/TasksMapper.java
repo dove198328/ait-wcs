@@ -1,6 +1,6 @@
 package cn.aitplus.wcs.infra.persistence.task;
 
-import cn.aitplus.wcs.core.domain.model.Task;
+import cn.aitplus.wcs.core.domain.model.task.Task;
 import cn.hutool.json.JSONObject;
 import com.baomidou.mybatisplus.core.mapper.BaseMapper;
 import com.baomidou.mybatisplus.core.metadata.IPage;

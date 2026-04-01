@@ -1,8 +1,8 @@
 package cn.aitplus.wcs.infra.service.profile.impl;
 
 import cn.aitplus.wcs.common.constant.WcsConstants;
-import cn.aitplus.wcs.core.domain.model.ProfileChainNode;
-import cn.aitplus.wcs.core.domain.model.WarehouseProfile;
+import cn.aitplus.wcs.core.domain.model.profile.ProfileChainNode;
+import cn.aitplus.wcs.core.domain.model.profile.WarehouseProfile;
 import cn.aitplus.wcs.infra.persistence.profile.ProfileChainNodeMapper;
 import cn.aitplus.wcs.infra.persistence.profile.WarehouseProfileMapper;
 import cn.aitplus.wcs.infra.service.profile.WarehouseProfileService;

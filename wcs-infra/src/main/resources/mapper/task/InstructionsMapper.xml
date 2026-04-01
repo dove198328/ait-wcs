@@ -4,7 +4,7 @@
         "http://mybatis.org/dtd/mybatis-3-mapper.dtd">
 <mapper namespace="cn.aitplus.wcs.infra.persistence.task.InstructionsMapper">
 
-    <resultMap id="InstructionsMap" type="cn.aitplus.wcs.core.domain.model.Instruction">
+    <resultMap id="InstructionsMap" type="cn.aitplus.wcs.core.domain.model.task.Instruction">
         <result property="id" column="id" jdbcType="INTEGER"/>
         <result property="subtaskId" column="subtask_id" jdbcType="INTEGER"/>
         <result property="sequence" column="sequence" jdbcType="INTEGER"/>

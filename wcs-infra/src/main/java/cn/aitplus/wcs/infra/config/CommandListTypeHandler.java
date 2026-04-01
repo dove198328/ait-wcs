@@ -1,6 +1,6 @@
 package cn.aitplus.wcs.infra.config;
 
-import cn.aitplus.wcs.core.domain.model.Command;
+import cn.aitplus.wcs.core.domain.model.execution.Command;
 import com.fasterxml.jackson.core.type.TypeReference;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import org.apache.ibatis.type.BaseTypeHandler;

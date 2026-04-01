@@ -1,4 +1,4 @@
-package cn.aitplus.wcs.core.domain.model;
+package cn.aitplus.wcs.core.domain.model.task;
 
 import io.swagger.annotations.ApiModel;
 import lombok.AllArgsConstructor;

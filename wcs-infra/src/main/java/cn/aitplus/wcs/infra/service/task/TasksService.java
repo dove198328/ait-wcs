@@ -1,7 +1,7 @@
 package cn.aitplus.wcs.infra.service.task;
 
 import com.baomidou.mybatisplus.core.metadata.IPage;
-import cn.aitplus.wcs.core.domain.model.Task;
+import cn.aitplus.wcs.core.domain.model.task.Task;
 import cn.hutool.json.JSONObject;
 
 import java.util.Date;

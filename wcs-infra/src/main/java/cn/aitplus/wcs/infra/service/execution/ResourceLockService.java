@@ -1,6 +1,6 @@
 package cn.aitplus.wcs.infra.service.execution;
 
-import cn.aitplus.wcs.core.domain.model.ResourceLock;
+import cn.aitplus.wcs.core.domain.model.execution.ResourceLock;
 import com.baomidou.mybatisplus.core.metadata.IPage;
 
 import java.util.List;
