@@ -27,7 +27,7 @@ public class DeviceProtocolResolver {
             return DomainEnums.CommandDomain.OPC;
         }
         if (normalized.contains("http") || normalized.contains("https")) {
-            return DomainEnums.CommandDomain.RCS;
+            return DomainEnums.CommandDomain.HTTP;
         }
         throw new IllegalStateException("暂不支持的设备协议类型：" + protocolType);
     }

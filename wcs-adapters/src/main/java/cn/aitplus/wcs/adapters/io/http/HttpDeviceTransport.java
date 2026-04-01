@@ -53,7 +53,7 @@ public class HttpDeviceTransport implements DeviceTransport, Ordered {
 
     @Override
     public boolean supports(DomainEnums.CommandDomain domain) {
-        return domain == DomainEnums.CommandDomain.RCS;
+        return domain == DomainEnums.CommandDomain.HTTP;
     }
 
     @Override

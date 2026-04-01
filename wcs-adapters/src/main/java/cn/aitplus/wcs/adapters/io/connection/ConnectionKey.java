@@ -51,12 +51,12 @@ public final class ConnectionKey implements Serializable {
                     throw new IllegalArgumentException("OPC endpoint.opcEndpointUrl required");
                 }
                 return new ConnectionKey(warehouseId + "|OPC|" + opc);
-            case RCS:
+            case HTTP:
                 String http = endpoint.getHttpBaseUrl() != null ? endpoint.getHttpBaseUrl().trim() : "";
                 if (!StringUtils.hasText(http)) {
-                    throw new IllegalArgumentException("RCS endpoint.httpBaseUrl required");
+                    throw new IllegalArgumentException("HTTP endpoint.httpBaseUrl required");
                 }
-                return new ConnectionKey(warehouseId + "|RCS|" + http);
+                return new ConnectionKey(warehouseId + "|HTTP|" + http);
             default:
                 throw new IllegalArgumentException("Unsupported domain: " + domain);
         }

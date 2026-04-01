@@ -17,7 +17,7 @@ public class HttpFallbackDeviceTransport implements DeviceTransport {
 
     @Override
     public boolean supports(DomainEnums.CommandDomain domain) {
-        return domain == DomainEnums.CommandDomain.RCS;
+        return domain == DomainEnums.CommandDomain.HTTP;
     }
 
     @Override

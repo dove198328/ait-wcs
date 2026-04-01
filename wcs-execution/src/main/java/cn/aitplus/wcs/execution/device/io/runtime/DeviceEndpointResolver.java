@@ -24,7 +24,7 @@ public class DeviceEndpointResolver {
         return switch (domain) {
             case S7 -> resolveS7Endpoint(trimmed);
             case MODBUS -> resolveModbusEndpoint(trimmed);
-            case RCS -> DeviceEndpoint.builder().httpBaseUrl(trimmed).build();
+            case HTTP -> DeviceEndpoint.builder().httpBaseUrl(trimmed).build();
             case OPC -> DeviceEndpoint.builder().opcEndpointUrl(trimmed).build();
         };
     }

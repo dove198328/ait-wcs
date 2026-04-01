@@ -27,7 +27,7 @@ public class DevicePointAddressResolver {
         }
         return switch (domain) {
             case S7 -> s7PointAddressConverter.convert(pointDefinition);
-            case MODBUS, RCS, OPC -> pointDefinition.getAddress().trim();
+            case MODBUS, HTTP, OPC -> pointDefinition.getAddress().trim();
         };
     }
 }
