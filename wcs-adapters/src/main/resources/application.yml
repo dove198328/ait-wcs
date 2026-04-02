@@ -11,11 +11,8 @@ wcs:
       max-reconnect-attempts: 8
       reconnect-initial-delay-millis: 500
       reconnect-max-delay-millis: 30000
-      heartbeat-read-address: ""
       borrow-probe-enabled: true
       borrow-probe-timeout-millis: 3000
-      stale-check-interval-millis: 2000
-      stale-check-plc-heartbeat-write-address: ""
     opcua:
       enabled: true
       max-nodes-per-service-call: 200

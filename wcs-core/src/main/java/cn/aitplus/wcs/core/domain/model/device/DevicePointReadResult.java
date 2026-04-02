@@ -6,11 +6,13 @@ import lombok.Data;
 import lombok.NoArgsConstructor;
 
 import java.io.Serializable;
+import java.time.Instant;
 import java.util.ArrayList;
 import java.util.List;
 
 /**
  * 设备点位读取结果。
+ * 一次性业务读取与监控内存快照统一复用该模型。
  */
 @Data
 @Builder
@@ -25,8 +27,10 @@ public class DevicePointReadResult implements Serializable {
     private String errorMessage;
     private String deviceId;
     private String deviceName;
+    private Long warehouseId;
     private String protocolType;
     private String rawResponseJson;
+    private Instant updatedAt;
 
     @Builder.Default
     private List<DevicePointValue> items = new ArrayList<>();

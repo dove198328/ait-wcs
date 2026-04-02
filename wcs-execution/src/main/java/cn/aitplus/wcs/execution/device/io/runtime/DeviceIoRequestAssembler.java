@@ -20,10 +20,10 @@ import java.util.Map;
 @Component
 public class DeviceIoRequestAssembler {
 
-    private final DevicePointAddressResolver devicePointAddressResolver;
+    private final ResolvedDevicePointResolver resolvedDevicePointResolver;
 
-    public DeviceIoRequestAssembler(DevicePointAddressResolver devicePointAddressResolver) {
-        this.devicePointAddressResolver = devicePointAddressResolver;
+    public DeviceIoRequestAssembler(ResolvedDevicePointResolver resolvedDevicePointResolver) {
+        this.resolvedDevicePointResolver = resolvedDevicePointResolver;
     }
 
     public DeviceIoPlan assembleReadPlan(DeviceRuntimeProfile runtimeProfile, Collection<String> pointIds) {
@@ -88,17 +88,11 @@ public class DeviceIoRequestAssembler {
         if (!StringUtils.hasText(pointId)) {
             throw new IllegalStateException("点位编号为空，无法装配设备 IO 请求");
         }
-        DevicePointDefinition pointDefinition = runtimeProfile.getDevicePointsConfig().getPointsConfig().get(pointId.trim());
-        if (pointDefinition == null) {
-            throw new IllegalStateException("未找到设备点位定义，deviceId=" + runtimeProfile.getDeviceConfig().getDeviceId()
-                + "，pointId=" + pointId);
-        }
-        validatePointDefinition(runtimeProfile.getDeviceConfig().getDeviceId(), pointDefinition);
-        return ResolvedDevicePoint.builder()
-            .pointId(pointId.trim())
-            .pointDefinition(pointDefinition)
-            .adapterAddress(devicePointAddressResolver.resolve(runtimeProfile.getDomain(), pointDefinition))
-            .build();
+        return resolvedDevicePointResolver.resolveRequired(
+            runtimeProfile.getDeviceConfig().getDeviceId(),
+            runtimeProfile.getDomain(),
+            runtimeProfile.getDevicePointsConfig(),
+            pointId);
     }
 
     private void validateReadable(DevicePointDefinition pointDefinition) {
@@ -115,24 +109,6 @@ public class DeviceIoRequestAssembler {
 
     private String normalizeAccess(DevicePointDefinition pointDefinition) {
         return pointDefinition.getAccess() == null ? "" : pointDefinition.getAccess().trim().toUpperCase();
-    }
-
-    private void validatePointDefinition(String deviceId, DevicePointDefinition pointDefinition) {
-        if (!StringUtils.hasText(pointDefinition.getPointId())) {
-            throw new IllegalStateException("设备点位配置缺少 pointId，deviceId=" + deviceId);
-        }
-        if (!StringUtils.hasText(pointDefinition.getName())) {
-            throw new IllegalStateException("设备点位配置缺少 name，deviceId=" + deviceId + "，pointId=" + pointDefinition.getPointId());
-        }
-        if (!StringUtils.hasText(pointDefinition.getAddress())) {
-            throw new IllegalStateException("设备点位配置缺少 address，deviceId=" + deviceId + "，pointId=" + pointDefinition.getPointId());
-        }
-        if (!StringUtils.hasText(pointDefinition.getDataType())) {
-            throw new IllegalStateException("设备点位配置缺少 dataType，deviceId=" + deviceId + "，pointId=" + pointDefinition.getPointId());
-        }
-        if (!StringUtils.hasText(pointDefinition.getAccess())) {
-            throw new IllegalStateException("设备点位配置缺少 access，deviceId=" + deviceId + "，pointId=" + pointDefinition.getPointId());
-        }
     }
 
     private void validateRuntimeProfile(DeviceRuntimeProfile runtimeProfile) {

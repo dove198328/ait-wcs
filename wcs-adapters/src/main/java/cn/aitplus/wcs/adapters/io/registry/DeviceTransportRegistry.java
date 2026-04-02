@@ -8,6 +8,7 @@ import org.springframework.stereotype.Component;
 
 import java.util.ArrayList;
 import java.util.List;
+import java.util.function.Function;
 
 /**
  * 按 {@link DeviceTransport#supports} 选择首个实现；实现类可用 {@code @Order} 或 {@link org.springframework.core.Ordered} 控制优先级。
@@ -24,13 +25,22 @@ public class DeviceTransportRegistry {
     }
 
     public DeviceIoResult execute(DeviceIoRequest request) {
+        return dispatch(request, transport -> transport.execute(request));
+    }
+
+    public DeviceIoResult executeOnce(DeviceIoRequest request) {
+        return dispatch(request, transport -> transport.executeOnce(request));
+    }
+
+    private DeviceIoResult dispatch(DeviceIoRequest request,
+                                    Function<DeviceTransport, DeviceIoResult> executor) {
         if (request == null || request.getDomain() == null) {
             return DeviceIoResult.fail("INVALID_REQUEST", "request or domain is null");
         }
         for (DeviceTransport transport : transports) {
             if (transport.supports(request.getDomain())) {
                 try {
-                    return transport.execute(request);
+                    return executor.apply(transport);
                 } catch (Exception e) {
                     return DeviceIoResult.fail("TRANSPORT_ERROR",
                         e.getMessage() != null ? e.getMessage() : e.getClass().getSimpleName());

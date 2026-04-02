@@ -19,4 +19,12 @@ public class ResolvedDevicePoint {
     private String adapterAddress;
     private DevicePointDefinition pointDefinition;
     private Object writeValue;
+
+    public String getPhysicalAddress() {
+        return adapterAddress;
+    }
+
+    public void setPhysicalAddress(String physicalAddress) {
+        this.adapterAddress = physicalAddress;
+    }
 }
