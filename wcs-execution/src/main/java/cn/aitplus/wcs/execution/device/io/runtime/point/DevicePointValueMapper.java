@@ -9,6 +9,8 @@ import cn.aitplus.wcs.execution.device.io.s7.S7DataTypeValueConverter;
 import org.springframework.stereotype.Component;
 import org.springframework.util.StringUtils;
 
+import java.math.BigDecimal;
+
 /**
  * 统一完成点位值的类型转换、状态解析、告警判断和结果对象映射。
  */
@@ -32,7 +34,8 @@ public class DevicePointValueMapper {
                                          Object rawValue) {
         DevicePointDefinition pointDefinition = resolvedPoint.getPointDefinition();
         Object javaValue = convertJavaValue(domain, pointDefinition, rawValue);
-        String displayValue = javaValue == null ? null : String.valueOf(javaValue);
+        Object scaledValue = applyScale(pointDefinition, javaValue);
+        String displayValue = toDisplayValue(scaledValue);
         return DevicePointValue.builder()
                 .pointId(resolvedPoint.getPointId())
                 .name(pointDefinition.getName())
@@ -41,10 +44,10 @@ public class DevicePointValueMapper {
                 .dataType(pointDefinition.getDataType())
                 .access(pointDefinition.getAccess())
                 .description(pointDefinition.getDescription())
-                .rawValue(javaValue)
+                .rawValue(scaledValue)
                 .displayValue(displayValue)
                 .status(resolveStatus(domain, pointDefinition, javaValue))
-                .alarm(resolveAlarm(domain, pointDefinition, javaValue))
+                .alarm(resolveAlarm(domain, pointDefinition, scaledValue))
                 .build();
     }
 
@@ -55,6 +58,44 @@ public class DevicePointValueMapper {
             return rawValue;
         }
         return dataTypeValueConverter.convert(pointDefinition, rawValue);
+    }
+
+    private Object applyScale(DevicePointDefinition pointDefinition, Object javaValue) {
+        if (javaValue == null || pointDefinition == null || pointDefinition.getScale() == null) {
+            return javaValue;
+        }
+        BigDecimal left = toBigDecimal(javaValue);
+        if (left == null) {
+            return javaValue;
+        }
+        return left.multiply(pointDefinition.getScale());
+    }
+
+    private BigDecimal toBigDecimal(Object value) {
+        if (value instanceof BigDecimal bigDecimal) {
+            return bigDecimal;
+        }
+        if (value instanceof Number number) {
+            return new BigDecimal(String.valueOf(number));
+        }
+        if (value instanceof CharSequence text && StringUtils.hasText(text)) {
+            try {
+                return new BigDecimal(text.toString().trim());
+            } catch (NumberFormatException ex) {
+                return null;
+            }
+        }
+        return null;
+    }
+
+    private String toDisplayValue(Object value) {
+        if (value == null) {
+            return null;
+        }
+        if (value instanceof BigDecimal bigDecimal) {
+            return bigDecimal.toPlainString();
+        }
+        return String.valueOf(value);
     }
 
     private String resolveStatus(DomainEnums.CommandDomain domain,

@@ -5,12 +5,31 @@ wcs:
     http:
       enabled: true
       default-request-timeout-millis: 5000
+    modbus:
+      enabled: true
+      default-request-timeout-millis: 5000
+      default-word-order: WORD_SWAP
+      # ensureLiveConnection：单次建连失败后的重试次数；每次重试前 sleep，间隔按指数退避（见下两项）
+      max-reconnect-attempts: 8
+      # 首次重试前等待毫秒数；之后每次失败 delay = min(delay * 2, reconnect-max-delay-millis)
+      reconnect-initial-delay-millis: 500
+      reconnect-max-delay-millis: 30000
+      # 从池复用连接前是否健康探测；读 1 点（区与偏移见下，与 S7 的 PLC4X ping 不同）
+      borrow-probe-enabled: true
+      # 借线探测 I/O 超时（毫秒）；≤0 时回退用 default-request-timeout-millis
+      borrow-probe-timeout-millis: 3000
+      # 探测读哪个区：IR / HR / CO / DI；各读 1 寄存器或 1 线圈/离散
+      borrow-probe-region: IR
+      # 探测起始地址 0–65535；默认 0（原先行为等价于 IR:0）
+      borrow-probe-offset: 0
     s7:
       enabled: true
       default-request-timeout-millis: 5000
-      max-reconnect-attempts: 8
+      # ensureLiveConnection：建连失败重试次数；间隔指数退避，初值与封顶见下两项
+      max-reconnect-attempts: 3
       reconnect-initial-delay-millis: 500
-      reconnect-max-delay-millis: 30000
+      reconnect-max-delay-millis: 3_000
+      # 从池复用连接前是否 PLC4X ping；不支持 ping 的驱动会视为通过
       borrow-probe-enabled: true
       borrow-probe-timeout-millis: 3000
     opcua:

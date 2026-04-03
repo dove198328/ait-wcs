@@ -43,8 +43,18 @@ public class DeviceIoFacade {
     public DevicePointReadResult readPoints(Long warehouseId, String deviceId, Collection<String> pointIds) {
         DeviceRuntimeProfile runtimeProfile = deviceRuntimeProfileService.load(warehouseId, deviceId);
         DeviceIoPlan ioPlan = deviceIoRequestAssembler.assembleReadPlan(runtimeProfile, pointIds);
-        DeviceIoResult ioResult = deviceTransportRegistry.execute(ioPlan.getRequest());
-        return deviceIoResultMapper.toReadResult(ioPlan, ioResult);
+        return toReadResult(ioPlan, false);
+    }
+
+    public DevicePointReadResult readPointWithNewConnection(Long warehouseId, String deviceId, String pointId) {
+        return readPointsWithNewConnection(warehouseId, deviceId, List.of(pointId));
+    }
+
+    public DevicePointReadResult readPointsWithNewConnection(Long warehouseId, String deviceId,
+                                                             Collection<String> pointIds) {
+        DeviceRuntimeProfile runtimeProfile = deviceRuntimeProfileService.load(warehouseId, deviceId);
+        DeviceIoPlan ioPlan = deviceIoRequestAssembler.assembleReadPlan(runtimeProfile, pointIds);
+        return toReadResult(ioPlan, true);
     }
 
     public DevicePointWriteResult writePoint(Long warehouseId, String deviceId, String pointId, Object value) {
@@ -54,7 +64,35 @@ public class DeviceIoFacade {
     public DevicePointWriteResult writePoints(Long warehouseId, String deviceId, Map<String, Object> pointValues) {
         DeviceRuntimeProfile runtimeProfile = deviceRuntimeProfileService.load(warehouseId, deviceId);
         DeviceIoPlan ioPlan = deviceIoRequestAssembler.assembleWritePlan(runtimeProfile, pointValues);
-        DeviceIoResult ioResult = deviceTransportRegistry.execute(ioPlan.getRequest());
+        return toWriteResult(ioPlan, false);
+    }
+
+    public DevicePointWriteResult writePointWithNewConnection(Long warehouseId, String deviceId,
+                                                              String pointId, Object value) {
+        return writePointsWithNewConnection(warehouseId, deviceId, Map.of(pointId, value));
+    }
+
+    public DevicePointWriteResult writePointsWithNewConnection(Long warehouseId, String deviceId,
+                                                               Map<String, Object> pointValues) {
+        DeviceRuntimeProfile runtimeProfile = deviceRuntimeProfileService.load(warehouseId, deviceId);
+        DeviceIoPlan ioPlan = deviceIoRequestAssembler.assembleWritePlan(runtimeProfile, pointValues);
+        return toWriteResult(ioPlan, true);
+    }
+
+    private DevicePointReadResult toReadResult(DeviceIoPlan ioPlan, boolean useNewConnection) {
+        DeviceIoResult ioResult = execute(ioPlan, useNewConnection);
+        return deviceIoResultMapper.toReadResult(ioPlan, ioResult);
+    }
+
+    private DevicePointWriteResult toWriteResult(DeviceIoPlan ioPlan, boolean useNewConnection) {
+        DeviceIoResult ioResult = execute(ioPlan, useNewConnection);
         return deviceIoResultMapper.toWriteResult(ioPlan, ioResult);
+    }
+
+    private DeviceIoResult execute(DeviceIoPlan ioPlan, boolean useNewConnection) {
+        if (useNewConnection) {
+            return deviceTransportRegistry.executeWithNewConnection(ioPlan.getRequest());
+        }
+        return deviceTransportRegistry.execute(ioPlan.getRequest());
     }
 }

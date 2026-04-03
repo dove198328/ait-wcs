@@ -19,11 +19,11 @@ public interface DeviceTransport {
     DeviceIoResult execute(DeviceIoRequest request);
 
     /**
-     * 单次尝试执行：有活连接直接用，没有则做一次建连尝试（不循环重试）。
-     * <p>监控服务使用此方法保证 2s 轮询周期不被重连循环阻塞。
-     * 默认实现直接委托 {@link #execute(DeviceIoRequest)}。
+     * 使用临时连接执行一次读/写；默认直接委托 {@link #execute(DeviceIoRequest)}。
+     * 协议适配器可覆盖该方法，提供“不经连接池、执行后立即关闭”的能力。
      */
-    default DeviceIoResult executeOnce(DeviceIoRequest request) {
+    default DeviceIoResult executeWithNewConnection(DeviceIoRequest request) {
         return execute(request);
     }
+
 }

@@ -28,8 +28,8 @@ public class DeviceTransportRegistry {
         return dispatch(request, transport -> transport.execute(request));
     }
 
-    public DeviceIoResult executeOnce(DeviceIoRequest request) {
-        return dispatch(request, transport -> transport.executeOnce(request));
+    public DeviceIoResult executeWithNewConnection(DeviceIoRequest request) {
+        return dispatch(request, transport -> transport.executeWithNewConnection(request));
     }
 
     private DeviceIoResult dispatch(DeviceIoRequest request,

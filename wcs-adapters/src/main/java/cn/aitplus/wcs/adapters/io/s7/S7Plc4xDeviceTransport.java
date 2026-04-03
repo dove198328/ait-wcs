@@ -116,58 +116,6 @@ public class S7Plc4xDeviceTransport implements DeviceTransport, Ordered {
         }
     }
 
-    @Override
-    public DeviceIoResult executeOnce(DeviceIoRequest request) {
-        if (request.getItems() == null || request.getItems().isEmpty()) {
-            return DeviceIoResult.fail("NO_ITEMS", "DeviceIoRequest.items is empty");
-        }
-        if (request.getEndpoint() == null || !StringUtils.hasText(request.getEndpoint().getHost())) {
-            return DeviceIoResult.fail("INVALID_ENDPOINT", "endpoint.host required");
-        }
-        if (destroyed) {
-            return DeviceIoResult.fail("TRANSPORT_DESTROYED", "S7 transport is destroyed");
-        }
-        ConnectionKey key = null;
-        ManagedConnection managed = null;
-        try {
-            key = ConnectionKey.from(
-                request.getWarehouseId(),
-                DomainEnums.CommandDomain.S7,
-                request.getEndpoint()
-            );
-            managed = pool.computeIfAbsent(key, k -> new ManagedConnection());
-            retainManaged(managed);
-            long timeoutMs = request.getTimeoutMillis() > 0
-                ? request.getTimeoutMillis()
-                : properties.getDefaultRequestTimeoutMillis();
-
-            PlcConnection conn = acquireConnectionOnce(key, managed, request.getEndpoint());
-            if (conn == null) {
-                return DeviceIoResult.fail("CONNECT_FAILED", "Single connect attempt failed for " + key);
-            }
-            synchronized (managed.lock) {
-                if (managed.connection != conn || !conn.isConnected()) {
-                    return DeviceIoResult.fail("CONNECTION_LOST", "Connection lost before IO for " + key);
-                }
-                try {
-                    return runIo(conn, request.getItems(), timeoutMs);
-                } catch (Exception e) {
-                    teardownConnection(key, managed, "Monitor IO failed");
-                    String msg = e.getMessage() != null ? e.getMessage() : e.getClass().getSimpleName();
-                    return DeviceIoResult.fail("IO_ERROR", msg);
-                }
-            }
-        } catch (Exception e) {
-            LOG.warn("S7 executeOnce failed warehouseId={} deviceId={}", request.getWarehouseId(), request.getDeviceId(), e);
-            String msg = e.getMessage() != null ? e.getMessage() : e.getClass().getSimpleName();
-            return DeviceIoResult.fail("S7_IO_ERROR", msg);
-        } finally {
-            if (key != null && managed != null) {
-                releaseManaged(key, managed);
-            }
-        }
-    }
-
     /**
      * Create a dedicated connection for the request and always close it in finally.
      */
@@ -202,32 +150,6 @@ public class S7Plc4xDeviceTransport implements DeviceTransport, Ordered {
             return DeviceIoResult.fail("S7_IO_ERROR", msg);
         } finally {
             closeQuietly(conn);
-        }
-    }
-
-    private PlcConnection acquireConnectionOnce(ConnectionKey key, ManagedConnection managed,
-                                                DeviceEndpoint endpoint) {
-        synchronized (managed.lock) {
-            PlcConnection conn = managed.connection;
-            if (conn != null && conn.isConnected()) {
-                if (properties.isBorrowProbeEnabled() && !probeConnectionHealthy(conn)) {
-                    teardownConnection(key, managed, "Borrow probe failed");
-                } else {
-                    return conn;
-                }
-            }
-        }
-        try {
-            String url = buildConnectionUrl(endpoint);
-            PlcConnection fresh = connectionManager.getConnection(url);
-            fresh.connect();
-            synchronized (managed.lock) {
-                managed.connection = fresh;
-                return fresh;
-            }
-        } catch (Exception e) {
-            LOG.debug("Single connect attempt failed key={}", key, e);
-            return null;
         }
     }
 

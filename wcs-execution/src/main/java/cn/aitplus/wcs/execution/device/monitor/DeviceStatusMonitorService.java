@@ -194,8 +194,8 @@ public class DeviceStatusMonitorService {
                 .items(readItems)
                 .build();
 
-        // 3. executeOnce
-        DeviceIoResult result = transportRegistry.executeOnce(readReq);
+        // 3. execute
+        DeviceIoResult result = transportRegistry.execute(readReq);
         if (result.isSuccess()) {
             log.info("监控轮询成功 endpoint={} connectionKey={} devices={} response={}",
                     endpointLabel, connectionKey, deviceIds, result.getResponseJson());
@@ -237,7 +237,7 @@ public class DeviceStatusMonitorService {
                             .build()))
                     .build();
             try {
-                DeviceIoResult writeResult = transportRegistry.executeOnce(writeReq);
+                DeviceIoResult writeResult = transportRegistry.execute(writeReq);
                 if (!writeResult.isSuccess()) {
                     log.debug("心跳写入失败 connectionKey={} error={}", connectionKey, writeResult.getErrorMessage());
                 }

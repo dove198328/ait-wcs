@@ -30,6 +30,13 @@ public class CommandPipelineDeviceDispatch {
     }
 
     /**
+     * 使用临时连接执行 IO，不复用连接池（由具体协议适配器决定是否覆盖该能力）。
+     */
+    public DeviceIoResult executeDeviceIoWithNewConnection(DeviceIoRequest request) {
+        return deviceTransportRegistry.executeWithNewConnection(request);
+    }
+
+    /**
      * 执行 IO 并按结果更新 {@code CommandExecution} 状态。
      */
     public void dispatchAndUpdateExecution(Long warehouseId, Long executionId, DeviceIoRequest request) {
