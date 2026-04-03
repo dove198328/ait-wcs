@@ -1,8 +1,10 @@
-package cn.aitplus.wcs.execution.device.io.runtime;
+package cn.aitplus.wcs.execution.device.io.runtime.profile;
 
 import cn.aitplus.wcs.core.domain.model.device.DeviceConfig;
 import cn.aitplus.wcs.core.domain.model.device.DevicePointsConfig;
 import cn.aitplus.wcs.execution.device.io.runtime.model.DeviceRuntimeProfile;
+import cn.aitplus.wcs.execution.device.io.runtime.protocol.DeviceEndpointResolver;
+import cn.aitplus.wcs.execution.device.io.runtime.protocol.DeviceProtocolResolver;
 import org.springframework.stereotype.Component;
 import org.springframework.util.StringUtils;
 

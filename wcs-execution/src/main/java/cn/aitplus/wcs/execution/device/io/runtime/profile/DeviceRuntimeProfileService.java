@@ -1,4 +1,4 @@
-package cn.aitplus.wcs.execution.device.io.runtime;
+package cn.aitplus.wcs.execution.device.io.runtime.profile;
 
 import cn.aitplus.wcs.core.domain.model.device.DeviceConfig;
 import cn.aitplus.wcs.core.domain.model.device.DevicePointsConfig;

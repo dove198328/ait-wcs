@@ -1,4 +1,4 @@
-package cn.aitplus.wcs.execution.device.io.runtime;
+package cn.aitplus.wcs.execution.device.io.runtime.pipline;
 
 import com.fasterxml.jackson.databind.JsonNode;
 import com.fasterxml.jackson.databind.ObjectMapper;

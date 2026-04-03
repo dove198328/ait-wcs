@@ -1,4 +1,4 @@
-package cn.aitplus.wcs.execution.device.io.runtime;
+package cn.aitplus.wcs.execution.device.io.runtime.point;
 
 import cn.aitplus.wcs.core.domain.enums.DomainEnums;
 import cn.aitplus.wcs.core.domain.model.device.DevicePointDefinition;

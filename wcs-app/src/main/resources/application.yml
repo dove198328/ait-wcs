@@ -142,3 +142,7 @@ mqtt:
     alarm: device/alarms
     # 状态主题
     status: device/status
+
+logging:
+  level:
+    cn.aitplus.wcs: DEBUG
