@@ -1,6 +1,7 @@
 package cn.aitplus.wcs.app.service.device;
 
 import cn.aitplus.wcs.app.config.WmsProperties;
+import cn.aitplus.wcs.app.util.DeviceListJson;
 import cn.aitplus.wcs.common.constant.WcsConstants;
 import cn.aitplus.wcs.core.domain.model.device.DeviceConfig;
 import com.fasterxml.jackson.core.JsonProcessingException;
@@ -60,14 +61,14 @@ public class DeviceConfigSyncService {
         }
         List<JsonNode> nodes;
         try {
-            nodes = WmsDeviceListJson.parseDeviceNodes(body == null ? "" : body, objectMapper);
+            nodes = DeviceListJson.parseDeviceNodes(body == null ? "" : body, objectMapper);
         } catch (JsonProcessingException e) {
             throw new IllegalStateException("WMS 返回的设备列表不是合法 JSON，URL：" + url, e);
         }
         log.info("【设备同步】解析得到设备条目数：{}", nodes.size());
         int saved = 0;
         for (JsonNode node : nodes) {
-            String deviceId = WmsDeviceListJson.resolveDeviceId(node);
+            String deviceId = DeviceListJson.resolveDeviceId(node);
             if (!StringUtils.hasText(deviceId)) {
                 log.warn("【设备同步】跳过一条记录（无法解析设备 ID）：{}", node);
                 continue;

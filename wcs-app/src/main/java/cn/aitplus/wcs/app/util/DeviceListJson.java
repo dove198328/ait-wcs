@@ -1,4 +1,4 @@
-package cn.aitplus.wcs.app.service.device;
+package cn.aitplus.wcs.app.util;
 
 import com.fasterxml.jackson.core.JsonProcessingException;
 import com.fasterxml.jackson.databind.JsonNode;
@@ -11,9 +11,9 @@ import java.util.List;
 /**
  * Parses WMS device list JSON: root array, or object with {@code data} / {@code list} array.
  */
-public final class WmsDeviceListJson {
+public final class DeviceListJson {
 
-    private WmsDeviceListJson() {
+    private DeviceListJson() {
     }
 
     public static List<JsonNode> parseDeviceNodes(String body, ObjectMapper mapper) throws JsonProcessingException {

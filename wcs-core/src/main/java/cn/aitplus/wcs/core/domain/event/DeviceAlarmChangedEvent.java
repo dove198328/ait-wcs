@@ -23,5 +23,8 @@ public class DeviceAlarmChangedEvent {
     private String protocolType;
     private boolean alarm;
     private Set<String> alarmPointIds;
+    /** 为 true 表示由通讯/监控离线触发的告警（MQTT 告警 topic），非默认点规则。 */
+    @Builder.Default
+    private boolean communicationOffline = true;
     private Instant timestamp;
 }
