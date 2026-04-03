@@ -13,9 +13,9 @@ import org.springframework.util.StringUtils;
 @Component
 public class ResolvedDevicePointResolver {
 
-    private final DevicePointAddressResolver devicePointAddressResolver;
+    private final DevicePointAdapterAddressResolver devicePointAddressResolver;
 
-    public ResolvedDevicePointResolver(DevicePointAddressResolver devicePointAddressResolver) {
+    public ResolvedDevicePointResolver(DevicePointAdapterAddressResolver devicePointAddressResolver) {
         this.devicePointAddressResolver = devicePointAddressResolver;
     }
 

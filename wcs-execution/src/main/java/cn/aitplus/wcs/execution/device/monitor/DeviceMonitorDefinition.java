@@ -66,6 +66,14 @@ public class DeviceMonitorDefinition {
         return !dynamicPointSources.isEmpty();
     }
 
+    public boolean hasEffectivePoints() {
+        return effectivePoints != null && !effectivePoints.isEmpty();
+    }
+
+    public boolean isActivePolling() {
+        return pollingEnabled && hasEffectivePoints();
+    }
+
     public String getDeviceId() {
         return runtimeProfile.getDeviceConfig().getDeviceId();
     }

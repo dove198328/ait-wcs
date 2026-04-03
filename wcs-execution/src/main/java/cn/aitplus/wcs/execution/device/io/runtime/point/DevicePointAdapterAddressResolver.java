@@ -11,13 +11,13 @@ import org.springframework.util.StringUtils;
  * 点位地址解析器。
  */
 @Component
-public class DevicePointAddressResolver {
+public class DevicePointAdapterAddressResolver {
 
     private final S7PointAddressConverter s7PointAddressConverter;
     private final ModbusPointAddressConverter modbusPointAddressConverter;
 
-    public DevicePointAddressResolver(S7PointAddressConverter s7PointAddressConverter,
-                                      ModbusPointAddressConverter modbusPointAddressConverter) {
+    public DevicePointAdapterAddressResolver(S7PointAddressConverter s7PointAddressConverter,
+                                             ModbusPointAddressConverter modbusPointAddressConverter) {
         this.s7PointAddressConverter = s7PointAddressConverter;
         this.modbusPointAddressConverter = modbusPointAddressConverter;
     }

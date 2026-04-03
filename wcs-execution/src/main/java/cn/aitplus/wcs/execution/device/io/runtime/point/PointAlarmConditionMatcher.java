@@ -1,4 +1,4 @@
-package cn.aitplus.wcs.execution.device.io.s7;
+package cn.aitplus.wcs.execution.device.io.runtime.point;
 
 import org.springframework.stereotype.Component;
 import org.springframework.util.StringUtils;
@@ -24,7 +24,7 @@ import java.util.Locale;
  * 5. 多段规则（或关系）：{@code range:[1000,2000];exclude:1041|3000,3001}
  */
 @Component
-public class S7AlarmConditionMatcher {
+public class PointAlarmConditionMatcher {
 
     public boolean matches(Object javaValue, String alarmCondition) {
         if (javaValue == null || !StringUtils.hasText(alarmCondition)) {

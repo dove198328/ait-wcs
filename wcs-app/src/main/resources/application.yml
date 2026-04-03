@@ -25,8 +25,13 @@ wcs:
   monitor:
     poll-interval-millis: 2000
     io-pool-size: 4
-    default-point-ids: SBZT,XTXH,HCZT
-    heartbeat-write-point-id: WXTXH
+    protocols:
+      s7:
+        default-point-ids: SBZT,XTXH
+        heartbeat-write-point-id: WXTXH
+      modbus:
+        default-point-ids: []
+        heartbeat-write-point-id: ""
   # 是否开启返回数据加密
   encrypt:
     enabled: false

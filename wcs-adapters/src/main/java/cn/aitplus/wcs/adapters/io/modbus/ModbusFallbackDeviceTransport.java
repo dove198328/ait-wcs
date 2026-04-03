@@ -8,9 +8,12 @@ import org.springframework.core.Ordered;
 import org.springframework.core.annotation.Order;
 import org.springframework.stereotype.Component;
 
+/**
+ * 未启用真实 Modbus Bean 时的占位；与 {@link ModbusTcpDeviceTransport} 并存时排序在后。
+ */
 @Component
 @Order(Ordered.LOWEST_PRECEDENCE)
-public class ModbusStubDeviceTransport implements DeviceTransport {
+public class ModbusFallbackDeviceTransport implements DeviceTransport {
 
     @Override
     public boolean supports(DomainEnums.CommandDomain domain) {
@@ -19,6 +22,7 @@ public class ModbusStubDeviceTransport implements DeviceTransport {
 
     @Override
     public DeviceIoResult execute(DeviceIoRequest request) {
-        return DeviceIoResult.fail("NOT_IMPLEMENTED", "Modbus TCP transport is not implemented yet.");
+        return DeviceIoResult.fail("MODBUS_DISABLED",
+                "Set wcs.adapter.modbus.enabled=true to use Modbus TCP (j2mod).");
     }
 }

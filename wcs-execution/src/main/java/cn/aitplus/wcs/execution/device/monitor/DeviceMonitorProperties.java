@@ -1,13 +1,18 @@
 package cn.aitplus.wcs.execution.device.monitor;
 
+import cn.aitplus.wcs.core.domain.enums.DomainEnums;
 import lombok.Getter;
+import lombok.NoArgsConstructor;
 import lombok.Setter;
 import org.springframework.boot.context.properties.ConfigurationProperties;
 
+import java.util.LinkedHashMap;
 import java.util.List;
+import java.util.Locale;
+import java.util.Map;
 
 /**
- * 设备监控配置属性。
+ * Monitor scheduler settings plus protocol-specific polling defaults.
  */
 @Getter
 @Setter
@@ -18,8 +23,37 @@ public class DeviceMonitorProperties {
 
     private int ioPoolSize = 4;
 
-    private List<String> defaultPointIds = List.of("SBZT", "XTXH", "HCZT");
+    private Map<String, ProtocolMonitorProperties> protocols = new LinkedHashMap<>();
 
-    /** 逻辑点 ID，每轮 poll 读成功后写交替 0/1；空字符串表示不写。 */
-    private String heartbeatWritePointId = "";
+    public List<String> getDefaultPointIds(DomainEnums.CommandDomain domain) {
+        return getProtocolProperties(domain).getDefaultPointIds();
+    }
+
+    public String getHeartbeatWritePointId(DomainEnums.CommandDomain domain) {
+        return getProtocolProperties(domain).getHeartbeatWritePointId();
+    }
+
+    private ProtocolMonitorProperties getProtocolProperties(DomainEnums.CommandDomain domain) {
+        if (domain == null || protocols == null || protocols.isEmpty()) {
+            return new ProtocolMonitorProperties();
+        }
+        String key = domain.name().toLowerCase(Locale.ROOT);
+        ProtocolMonitorProperties props = protocols.get(key);
+        return props != null ? props : new ProtocolMonitorProperties();
+    }
+
+    @Getter
+    @Setter
+    @NoArgsConstructor
+    public static class ProtocolMonitorProperties {
+
+        private List<String> defaultPointIds = List.of();
+
+        private String heartbeatWritePointId = "";
+
+        public ProtocolMonitorProperties(List<String> defaultPointIds, String heartbeatWritePointId) {
+            this.defaultPointIds = defaultPointIds;
+            this.heartbeatWritePointId = heartbeatWritePointId;
+        }
+    }
 }

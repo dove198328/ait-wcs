@@ -58,7 +58,7 @@ public class DeviceMonitorDefinitionBuilder {
             }
         }
 
-        long passiveDevices = definitionsByDeviceId.values().stream().filter(def -> !def.isPollingEnabled()).count();
+        long passiveDevices = definitionsByDeviceId.values().stream().filter(def -> !def.isActivePolling()).count();
         log.info("监控索引构建完成：轮询组 {} 个，设备 {} 台，非轮询设备 {} 台",
                 groups.size(), definitionsByDeviceId.size(), passiveDevices);
         for (Map.Entry<ConnectionKey, List<DeviceMonitorDefinition>> entry : groups.entrySet()) {
@@ -139,7 +139,7 @@ public class DeviceMonitorDefinitionBuilder {
         }
 
         Map<String, ResolvedDevicePoint> result = new LinkedHashMap<>();
-        for (String pointId : properties.getDefaultPointIds()) {
+        for (String pointId : properties.getDefaultPointIds(domain)) {
             try {
                 ResolvedDevicePoint resolved = resolvedDevicePointResolver.resolveNullable(deviceId, domain, pointsConfig, pointId);
                 if (resolved == null) {

@@ -37,7 +37,7 @@
 - **业务 IO 失败**：丢弃连接，避免假活会话继续复用。
 - **定时巡检（唯一周期）**：仅由 **`stale-check-interval-millis`** 驱动（毫秒，≤0 关闭）。每周期对池中连接：`isConnected` → 可选 **`stale-check-plc-heartbeat-write-address`** 向 PLC **写**交替 0/1（BOOL，供 PLC 识别 WCS 存活）→ 与借用相同的**读探测**（WCS 侧确认链路）。写失败或读探测失败均丢弃连接。
 - **并发**：同一 `ConnectionKey` 上 **探测 + 业务 IO 在同一把锁内串行**，避免多线程共一条 `PlcConnection`。
-- **临时连接**：`S7Plc4xDeviceTransport#executeWithNewConnection` 不经池，单次建连、读写、`finally` 关闭；供隔离调试或特殊任务使用（需直接注入该 Bean）。
+- **临时连接**：`DeviceTransport#executeWithNewConnection` 可由协议适配器覆盖实现“不经池，单次建连、读写、`finally` 关闭”；S7 当前已提供该能力，供隔离调试或特殊任务使用。
 
 ## 7. OPC UA（`wcs.adapter.opcua`）摘要
 

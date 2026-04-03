@@ -13,11 +13,11 @@ import java.util.Map;
  * 统一解析设备读取结果中的 reads 节点，屏蔽 object / array 两种返回结构差异。
  */
 @Component
-public class DeviceIoReadResultParser {
+public class DeviceIoReadsParser {
 
     private final ObjectMapper objectMapper;
 
-    public DeviceIoReadResultParser(ObjectMapper objectMapper) {
+    public DeviceIoReadsParser(ObjectMapper objectMapper) {
         this.objectMapper = objectMapper;
     }
 

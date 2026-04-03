@@ -2,19 +2,23 @@ package cn.aitplus.wcs.execution.device.monitor;
 
 import cn.aitplus.wcs.adapters.io.connection.ConnectionKey;
 import cn.aitplus.wcs.adapters.io.registry.DeviceTransportRegistry;
+import cn.aitplus.wcs.core.domain.enums.DomainEnums;
 import cn.aitplus.wcs.core.domain.event.DeviceAlarmChangedEvent;
 import cn.aitplus.wcs.core.domain.event.DeviceOnlineChangedEvent;
 import cn.aitplus.wcs.core.domain.event.DevicePointValueChangedEvent;
 import cn.aitplus.wcs.core.domain.model.device.DevicePointReadResult;
 import cn.aitplus.wcs.core.domain.model.device.DevicePointValue;
 import cn.aitplus.wcs.core.domain.model.device.DevicePointsConfig;
+import cn.aitplus.wcs.core.spi.device.DeviceEndpoint;
 import cn.aitplus.wcs.core.spi.device.DeviceIoItem;
 import cn.aitplus.wcs.core.spi.device.DeviceIoRequest;
 import cn.aitplus.wcs.core.spi.device.DeviceIoResult;
-import cn.aitplus.wcs.execution.device.io.runtime.pipline.DeviceIoReadResultParser;
-import cn.aitplus.wcs.execution.device.io.runtime.point.DevicePointValueMapper;
 import cn.aitplus.wcs.execution.device.io.runtime.model.ResolvedDevicePoint;
+import cn.aitplus.wcs.execution.device.io.runtime.pipline.DeviceIoReadsParser;
+import cn.aitplus.wcs.execution.device.io.runtime.point.DevicePointValueMapper;
 import cn.aitplus.wcs.infra.service.device.DeviceConfigRedisScanner;
+import com.fasterxml.jackson.core.JsonProcessingException;
+import com.fasterxml.jackson.databind.ObjectMapper;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.context.ApplicationEventPublisher;
@@ -38,13 +42,7 @@ import java.util.concurrent.TimeUnit;
 import java.util.stream.Collectors;
 
 /**
- * 设备状态监控核心服务。
- * <ul>
- *   <li>启动时构建监控索引（从 Redis 配置）</li>
- *   <li>每轮 poll 两阶段流水线：并行读取 → 串行 diff + 事件</li>
- *   <li>维护内存快照，暴露查询接口</li>
- *   <li>支持动态监控点注册/注销（引用计数）</li>
- * </ul>
+ * 设备状态监控服务。
  */
 @Service
 public class DeviceStatusMonitorService {
@@ -57,14 +55,13 @@ public class DeviceStatusMonitorService {
     private final ApplicationEventPublisher eventPublisher;
     private final DeviceMonitorProperties properties;
     private final DeviceConfigRedisScanner configScanner;
-    private final DeviceIoReadResultParser readResultParser;
+    private final DeviceIoReadsParser readResultParser;
+    private final ObjectMapper objectMapper;
 
     private volatile MonitorIndex currentIndex;
     private final ConcurrentHashMap<String, DevicePointReadResult> lastSnapshots = new ConcurrentHashMap<>();
     private final ConcurrentHashMap<String, Object> lastDynamicPointValues = new ConcurrentHashMap<>();
-
-    /** 心跳写入相位：ConnectionKey → 递增计数（奇偶决定写 0/1） */
-    private final ConcurrentHashMap<ConnectionKey, Integer> heartbeatPhase = new ConcurrentHashMap<>();
+    private final ConcurrentHashMap<String, Integer> heartbeatPhase = new ConcurrentHashMap<>();
 
     private ExecutorService ioExecutor;
 
@@ -74,7 +71,8 @@ public class DeviceStatusMonitorService {
                                       ApplicationEventPublisher eventPublisher,
                                       DeviceMonitorProperties properties,
                                       DeviceConfigRedisScanner configScanner,
-                                      DeviceIoReadResultParser readResultParser) {
+                                      DeviceIoReadsParser readResultParser,
+                                      ObjectMapper objectMapper) {
         this.definitionBuilder = definitionBuilder;
         this.transportRegistry = transportRegistry;
         this.devicePointValueMapper = devicePointValueMapper;
@@ -82,6 +80,7 @@ public class DeviceStatusMonitorService {
         this.properties = properties;
         this.configScanner = configScanner;
         this.readResultParser = readResultParser;
+        this.objectMapper = objectMapper;
     }
 
     public void initialize() {
@@ -93,27 +92,13 @@ public class DeviceStatusMonitorService {
         });
 
         for (DeviceMonitorDefinition def : currentIndex.getDefinitionsByDeviceId().values()) {
-            if (!def.isPollingEnabled()) {
-                DevicePointReadResult snapshot = DevicePointReadResult.builder()
-                        .success(true)
-                        .errorCode(null)
-                        .errorMessage(null)
-                        .deviceId(def.getDeviceId())
-                        .deviceName(def.getDeviceName())
-                        .warehouseId(def.getWarehouseId())
-                        .protocolType(def.getProtocolType())
-                        .rawResponseJson(null)
-                        .items(List.of())
-                        .updatedAt(Instant.now())
-                        .build();
-                lastSnapshots.put(def.getDeviceId(), snapshot);
+            if (!def.isActivePolling()) {
+                lastSnapshots.put(def.getDeviceId(), buildPassiveSnapshot(def));
             }
         }
 
         log.info("DeviceStatusMonitorService 初始化完成，IO 线程池大小={}", properties.getIoPoolSize());
     }
-
-    // ==================== 轮询入口 ====================
 
     public void poll() {
         MonitorIndex index = currentIndex;
@@ -121,14 +106,18 @@ public class DeviceStatusMonitorService {
             return;
         }
 
-        // 阶段 ①：并行读取（每个 ConnectionKey 一个 Future）
         long timeout = properties.getPollIntervalMillis() * 80 / 100;
         Map<ConnectionKey, List<DeviceMonitorDefinition>> groups = index.getGroups();
         Map<ConnectionKey, CompletableFuture<GroupReadResult>> futures = new LinkedHashMap<>();
 
         for (Map.Entry<ConnectionKey, List<DeviceMonitorDefinition>> entry : groups.entrySet()) {
             ConnectionKey ck = entry.getKey();
-            List<DeviceMonitorDefinition> definitions = entry.getValue();
+            List<DeviceMonitorDefinition> definitions = entry.getValue().stream()
+                    .filter(DeviceMonitorDefinition::isActivePolling)
+                    .toList();
+            if (definitions.isEmpty()) {
+                continue;
+            }
             futures.put(ck, CompletableFuture.supplyAsync(() -> readGroup(ck, definitions), ioExecutor));
         }
 
@@ -138,13 +127,12 @@ public class DeviceStatusMonitorService {
                 results.put(entry.getKey(), entry.getValue().get(timeout, TimeUnit.MILLISECONDS));
             } catch (Exception ex) {
                 log.debug("读取超时或异常 connectionKey={}", entry.getKey(), ex);
-                results.put(entry.getKey(), new GroupReadResult(entry.getKey(), null));
+                results.put(entry.getKey(), GroupReadResult.empty(entry.getKey()));
             }
         }
 
-        // 阶段 ②：串行 diff + 事件（调度线程）
         for (DeviceMonitorDefinition def : index.getDefinitionsByDeviceId().values()) {
-            if (!def.isPollingEnabled()) {
+            if (!def.isActivePolling()) {
                 continue;
             }
             try {
@@ -155,46 +143,33 @@ public class DeviceStatusMonitorService {
         }
     }
 
-    // ==================== 单组读取（IO 线程） ====================
-
     private GroupReadResult readGroup(ConnectionKey connectionKey, List<DeviceMonitorDefinition> definitions) {
         if (definitions == null || definitions.isEmpty()) {
             log.info("监控轮询跳过 connectionKey={} reason=no_definitions", connectionKey);
-            return new GroupReadResult(connectionKey, null);
+            return GroupReadResult.empty(connectionKey);
         }
+        DeviceMonitorDefinition sample = definitions.get(0);
+        if (sample.getDomain() == DomainEnums.CommandDomain.MODBUS) {
+            return readModbusGroup(connectionKey, definitions);
+        }
+        return readSharedGroup(connectionKey, definitions);
+    }
+
+    private GroupReadResult readSharedGroup(ConnectionKey connectionKey, List<DeviceMonitorDefinition> definitions) {
         DeviceMonitorDefinition sample = definitions.get(0);
         String deviceIds = definitions.stream()
                 .map(DeviceMonitorDefinition::getDeviceId)
                 .collect(Collectors.joining(","));
         String endpointLabel = resolveEndpointLabel(sample);
-
-        // 1. 汇总所有设备的 effectivePoints 物理地址（去重）
-        Set<String> uniqueAddresses = new LinkedHashSet<>();
-        for (DeviceMonitorDefinition def : definitions) {
-            for (ResolvedDevicePoint point : def.getEffectivePoints().values()) {
-                uniqueAddresses.add(point.getPhysicalAddress());
-            }
-        }
+        Set<String> uniqueAddresses = collectUniqueAddresses(definitions);
 
         if (uniqueAddresses.isEmpty()) {
             log.info("监控轮询跳过 endpoint={} connectionKey={} devices={} reason=no_physical_addresses",
                     endpointLabel, connectionKey, deviceIds);
-            return new GroupReadResult(connectionKey, null);
+            return GroupReadResult.empty(connectionKey);
         }
 
-        // 2. 构建批量读请求
-        List<DeviceIoItem> readItems = uniqueAddresses.stream()
-                .map(addr -> DeviceIoItem.builder().address(addr).write(false).build())
-                .collect(Collectors.toList());
-
-        DeviceIoRequest readReq = DeviceIoRequest.builder()
-                .domain(sample.getDomain())
-                .endpoint(sample.getEndpoint())
-                .warehouseId(sample.getWarehouseId())
-                .items(readItems)
-                .build();
-
-        // 3. execute
+        DeviceIoRequest readReq = buildReadRequest(sample, uniqueAddresses);
         DeviceIoResult result = transportRegistry.execute(readReq);
         if (result.isSuccess()) {
             log.info("监控轮询成功 endpoint={} connectionKey={} devices={} response={}",
@@ -204,32 +179,127 @@ public class DeviceStatusMonitorService {
                     endpointLabel, connectionKey, deviceIds, result.getErrorCode(), result.getErrorMessage());
         }
 
-        // 4. 读成功后写心跳
-        if (result.isSuccess() && StringUtils.hasText(properties.getHeartbeatWritePointId())) {
+        String heartbeatWritePointId = properties.getHeartbeatWritePointId(sample.getDomain());
+        if (result.isSuccess() && StringUtils.hasText(heartbeatWritePointId)) {
             writeHeartbeat(connectionKey, definitions);
         }
 
-        return new GroupReadResult(connectionKey, result);
+        return GroupReadResult.same(connectionKey, definitions, result);
+    }
+
+    private GroupReadResult readModbusGroup(ConnectionKey connectionKey, List<DeviceMonitorDefinition> definitions) {
+        String deviceIds = definitions.stream()
+                .map(DeviceMonitorDefinition::getDeviceId)
+                .collect(Collectors.joining(","));
+        String endpointLabel = resolveEndpointLabel(definitions.get(0));
+
+        Map<Integer, List<DeviceMonitorDefinition>> unitGroups = definitions.stream()
+                .collect(Collectors.groupingBy(this::resolveModbusUnitId, LinkedHashMap::new, Collectors.toList()));
+
+        Map<String, DeviceIoResult> resultsByDeviceId = new LinkedHashMap<>();
+        for (Map.Entry<Integer, List<DeviceMonitorDefinition>> entry : unitGroups.entrySet()) {
+            Integer unitId = entry.getKey();
+            List<DeviceMonitorDefinition> unitDefinitions = entry.getValue();
+            Set<String> uniqueAddresses = collectUniqueAddresses(unitDefinitions);
+            if (uniqueAddresses.isEmpty()) {
+                DeviceIoResult emptyResult = DeviceIoResult.ok(buildReadResponseJson(Map.of()));
+                for (DeviceMonitorDefinition def : unitDefinitions) {
+                    resultsByDeviceId.put(def.getDeviceId(), emptyResult);
+                }
+                continue;
+            }
+
+            DeviceMonitorDefinition sample = unitDefinitions.get(0);
+            DeviceIoRequest readReq = buildReadRequest(sample, uniqueAddresses);
+            DeviceIoResult result = transportRegistry.execute(readReq);
+            if (result.isSuccess()) {
+                log.info("监控轮询成功 endpoint={} connectionKey={} unitId={} devices={} response={}",
+                        endpointLabel,
+                        connectionKey,
+                        unitId,
+                        unitDefinitions.stream().map(DeviceMonitorDefinition::getDeviceId).collect(Collectors.joining(",")),
+                        result.getResponseJson());
+            } else {
+                log.warn("监控轮询失败 endpoint={} connectionKey={} unitId={} devices={} errorCode={} errorMessage={}",
+                        endpointLabel,
+                        connectionKey,
+                        unitId,
+                        unitDefinitions.stream().map(DeviceMonitorDefinition::getDeviceId).collect(Collectors.joining(",")),
+                        result.getErrorCode(),
+                        result.getErrorMessage());
+            }
+
+            String heartbeatWritePointId = properties.getHeartbeatWritePointId(sample.getDomain());
+            if (result.isSuccess() && StringUtils.hasText(heartbeatWritePointId)) {
+                writeHeartbeat(connectionKey, unitDefinitions);
+            }
+
+            for (DeviceMonitorDefinition def : unitDefinitions) {
+                resultsByDeviceId.put(def.getDeviceId(), result);
+            }
+        }
+
+        log.info("监控轮询完成 endpoint={} connectionKey={} devices={}", endpointLabel, connectionKey, deviceIds);
+        return new GroupReadResult(connectionKey, resultsByDeviceId);
+    }
+
+    private Set<String> collectUniqueAddresses(List<DeviceMonitorDefinition> definitions) {
+        Set<String> uniqueAddresses = new LinkedHashSet<>();
+        for (DeviceMonitorDefinition def : definitions) {
+            for (ResolvedDevicePoint point : def.getEffectivePoints().values()) {
+                uniqueAddresses.add(point.getPhysicalAddress());
+            }
+        }
+        return uniqueAddresses;
+    }
+
+    private DeviceIoRequest buildReadRequest(DeviceMonitorDefinition sample, Set<String> uniqueAddresses) {
+        List<DeviceIoItem> readItems = uniqueAddresses.stream()
+                .map(addr -> DeviceIoItem.builder().address(addr).write(false).build())
+                .toList();
+        return DeviceIoRequest.builder()
+                .domain(sample.getDomain())
+                .endpoint(sample.getEndpoint())
+                .warehouseId(sample.getWarehouseId())
+                .items(readItems)
+                .build();
     }
 
     private void writeHeartbeat(ConnectionKey connectionKey, List<DeviceMonitorDefinition> definitions) {
         if (definitions == null || definitions.isEmpty()) {
             return;
         }
+        Map<String, List<DeviceMonitorDefinition>> heartbeatGroups = definitions.stream()
+                .collect(Collectors.groupingBy(def -> resolveHeartbeatPhaseKey(connectionKey, def),
+                        LinkedHashMap::new,
+                        Collectors.toList()));
+        for (List<DeviceMonitorDefinition> heartbeatDefinitions : heartbeatGroups.values()) {
+            writeHeartbeatGroup(connectionKey, heartbeatDefinitions);
+        }
+    }
+
+    private void writeHeartbeatGroup(ConnectionKey connectionKey, List<DeviceMonitorDefinition> definitions) {
+        if (definitions == null || definitions.isEmpty()) {
+            return;
+        }
         DeviceMonitorDefinition sample = definitions.get(0);
-        String hbPointId = properties.getHeartbeatWritePointId();
+        String hbPointId = properties.getHeartbeatWritePointId(sample.getDomain());
+        if (!StringUtils.hasText(hbPointId)) {
+            return;
+        }
+        String phaseKey = resolveHeartbeatPhaseKey(connectionKey, sample);
+        Integer phase = heartbeatPhase.merge(phaseKey, 1, Integer::sum);
+        boolean bit = phase != null && (phase & 1) == 1;
+
         for (DeviceMonitorDefinition def : definitions) {
             ResolvedDevicePoint hbPoint = def.getEffectivePoints().get(hbPointId);
             if (hbPoint == null) {
                 continue;
             }
-            Integer phase = heartbeatPhase.merge(connectionKey, 1, (left, right) -> left + right);
-            boolean bit = phase != null && (phase & 1) == 1;
-
             DeviceIoRequest writeReq = DeviceIoRequest.builder()
-                    .domain(sample.getDomain())
-                    .endpoint(sample.getEndpoint())
-                    .warehouseId(sample.getWarehouseId())
+                    .domain(def.getDomain())
+                    .endpoint(def.getEndpoint())
+                    .warehouseId(def.getWarehouseId())
                     .items(List.of(DeviceIoItem.builder()
                             .address(hbPoint.getPhysicalAddress())
                             .value(bit)
@@ -244,23 +314,19 @@ public class DeviceStatusMonitorService {
             } catch (Exception ex) {
                 log.debug("心跳写入异常 connectionKey={}", connectionKey, ex);
             }
-            return;
         }
     }
 
-    // ==================== 设备级结果处理（调度线程） ====================
-
     private void processDeviceResult(DeviceMonitorDefinition def, GroupReadResult groupResult) {
         String deviceId = def.getDeviceId();
-        DeviceIoResult ioResult = groupResult == null ? null : groupResult.getResult();
+        DeviceIoResult ioResult = groupResult == null ? null : groupResult.getResult(deviceId);
         boolean online = ioResult != null && ioResult.isSuccess();
 
         Map<String, Object> rawValues = Collections.emptyMap();
-        if (online && ioResult != null) {
+        if (online) {
             rawValues = readResultParser.parseReadValues(ioResult.getResponseJson());
         }
 
-        // 对每个监控点取值、转换、判告警
         List<DevicePointValue> pointValues = new ArrayList<>();
         Map<String, ResolvedDevicePoint> effectivePoints = def.getEffectivePoints();
 
@@ -272,12 +338,10 @@ public class DeviceStatusMonitorService {
             pointValues.add(pointValue);
             Object convertedValue = pointValue.getRawValue();
 
-            // 默认监控点 → 参与 alarm 聚合
             if (convertedValue == null) {
                 continue;
             }
 
-            // 动态附加点 → 值变化事件
             if (def.getDynamicPointSources().containsKey(pointId)) {
                 String cacheKey = deviceId + ":" + pointId;
                 Object oldValue = lastDynamicPointValues.get(cacheKey);
@@ -295,7 +359,6 @@ public class DeviceStatusMonitorService {
             }
         }
 
-        // 构建新快照
         DevicePointReadResult newSnapshot = DevicePointReadResult.builder()
                 .success(online)
                 .errorCode(ioResult == null ? "UNKNOWN" : ioResult.getErrorCode())
@@ -317,7 +380,6 @@ public class DeviceStatusMonitorService {
         boolean oldAlarm = !oldAlarmPointIds.isEmpty();
         boolean newAlarm = !newAlarmPointIds.isEmpty();
 
-        // diff → 设备级事件
         if (oldSnapshot == null || oldOnline != newOnline) {
             DeviceOnlineChangedEvent onlineChangedEvent = DeviceOnlineChangedEvent.builder()
                     .deviceId(deviceId)
@@ -344,8 +406,6 @@ public class DeviceStatusMonitorService {
             eventPublisher.publishEvent(Objects.requireNonNull(alarmChangedEvent, "alarmChangedEvent"));
         }
     }
-
-    // ==================== 动态监控点注册/注销 ====================
 
     public void registerMonitorPoints(String deviceId, Set<String> pointIds, String source) {
         MonitorIndex index = currentIndex;
@@ -417,9 +477,10 @@ public class DeviceStatusMonitorService {
             }
         }
         def.refreshEffectivePoints(resolvedDynamic);
+        if (!def.isActivePolling()) {
+            lastSnapshots.put(def.getDeviceId(), buildPassiveSnapshot(def));
+        }
     }
-
-    // ==================== 查询接口 ====================
 
     public boolean isDeviceOnline(String deviceId) {
         return isOnline(lastSnapshots.get(deviceId));
@@ -459,6 +520,21 @@ public class DeviceStatusMonitorService {
         return snapshot != null && snapshot.isSuccess();
     }
 
+    private DevicePointReadResult buildPassiveSnapshot(DeviceMonitorDefinition def) {
+        return DevicePointReadResult.builder()
+                .success(true)
+                .errorCode(null)
+                .errorMessage(null)
+                .deviceId(def.getDeviceId())
+                .deviceName(def.getDeviceName())
+                .warehouseId(def.getWarehouseId())
+                .protocolType(def.getProtocolType())
+                .rawResponseJson(null)
+                .items(List.of())
+                .updatedAt(Instant.now())
+                .build();
+    }
+
     private Set<String> resolveAlarmPointIds(DeviceMonitorDefinition def, DevicePointReadResult snapshot) {
         if (def == null || snapshot == null || snapshot.getItems() == null) {
             return Collections.emptySet();
@@ -475,23 +551,58 @@ public class DeviceStatusMonitorService {
         return alarmPointIds;
     }
 
-    // ==================== 内部结果类 ====================
+    private Integer resolveModbusUnitId(DeviceMonitorDefinition definition) {
+        DeviceEndpoint endpoint = definition == null ? null : definition.getEndpoint();
+        if (endpoint == null || endpoint.getModbusUnitId() == null) {
+            return 1;
+        }
+        return endpoint.getModbusUnitId();
+    }
+
+    private String resolveHeartbeatPhaseKey(ConnectionKey connectionKey, DeviceMonitorDefinition definition) {
+        if (definition != null && definition.getDomain() == DomainEnums.CommandDomain.MODBUS) {
+            return connectionKey + "#unitId=" + resolveModbusUnitId(definition);
+        }
+        return String.valueOf(connectionKey);
+    }
+
+    private String buildReadResponseJson(Map<String, Object> readMap) {
+        try {
+            return objectMapper.writeValueAsString(Map.of("reads", readMap));
+        } catch (JsonProcessingException ex) {
+            throw new IllegalStateException("构建监控读取结果失败", ex);
+        }
+    }
 
     static class GroupReadResult {
         private final ConnectionKey connectionKey;
-        private final DeviceIoResult result;
+        private final Map<String, DeviceIoResult> resultsByDeviceId;
 
-        GroupReadResult(ConnectionKey connectionKey, DeviceIoResult result) {
+        GroupReadResult(ConnectionKey connectionKey, Map<String, DeviceIoResult> resultsByDeviceId) {
             this.connectionKey = connectionKey;
-            this.result = result;
+            this.resultsByDeviceId = resultsByDeviceId != null ? resultsByDeviceId : Map.of();
+        }
+
+        static GroupReadResult empty(ConnectionKey connectionKey) {
+            return new GroupReadResult(connectionKey, Map.of());
+        }
+
+        static GroupReadResult same(ConnectionKey connectionKey,
+                                    List<DeviceMonitorDefinition> definitions,
+                                    DeviceIoResult result) {
+            Map<String, DeviceIoResult> resultsByDeviceId = new LinkedHashMap<>();
+            for (DeviceMonitorDefinition definition : definitions) {
+                resultsByDeviceId.put(definition.getDeviceId(), result);
+            }
+            return new GroupReadResult(connectionKey, resultsByDeviceId);
         }
 
         ConnectionKey getConnectionKey() {
             return connectionKey;
         }
 
-        DeviceIoResult getResult() {
-            return result;
+        DeviceIoResult getResult(String deviceId) {
+            return resultsByDeviceId.get(deviceId);
         }
     }
 }

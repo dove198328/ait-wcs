@@ -155,6 +155,75 @@
   "access": "READ_ONLY"
 }
 ```
+### Modbus `address` 说明
+
+Modbus 点位的 `address` 当前支持两种写法：
+
+- 纯数字写法
+  - 例如：`1`、`20`
+  - 这类写法会结合 `dataType` 推断成 canonical 地址
+  - 例如：`address=1` 且 `dataType=INT`，会推断为 `hr:1:i16`
+  - 例如：`address=7` 且 `dataType=BOOL`，会推断为 `co:7`
+
+- canonical 写法
+  - 推荐格式：`hr|ir|co|di:offset[:i16|u16|i32|u32|f32][:ws|be]`
+  - 例如：`hr:1:i16`
+  - 例如：`hr:10:f32:be`
+  - 例如：`co:7`
+
+规则说明如下：
+
+- `hr`
+  - Holding Register
+- `ir`
+  - Input Register
+- `co`
+  - Coil
+- `di`
+  - Discrete Input
+- 如果使用纯数字 `address`
+  - `BOOL` 默认按 `co` 处理
+  - 其他数值类型默认按 `hr` 处理
+- 如果使用 canonical `address`
+  - 以 `address` 自身声明的区域、类型、字序为准
+  - 此时 `dataType` 仍然保留配置语义，但不再单独决定 adapter 的最终读写标量类型
+- `modbusWordOrder`
+  - 只对 32 位类型有意义，如 `DINT`、`UDINT`、`REAL`
+  - 如果 canonical 地址已经显式写了 `:ws` 或 `:be`，以 `address` 为准
+
+### 完整 Modbus `pointsConfig` 示例（以 `SBZT` 为例）
+
+下面示例展示的是一个完整的 `device:points:config:{deviceId}` 结构，里面只放一个 `SBZT` 点位：
+
+```json
+{
+  "deviceId": "MODBUS-STACKER-01",
+  "pointsConfig": {
+    "SBZT": {
+      "pointId": "SBZT",
+      "name": "设备状态",
+      "address": "hr:1:i16",
+      "dataType": "INT",
+      "scale": 1,
+      "access": "READ_ONLY",
+      "description": "设备状态字，Holding Register 1，16位有符号整数"
+    }
+  }
+}
+```
+
+补充说明：
+
+- 上面这个 `SBZT` 也可以写成纯数字：
+  - `address: 1`
+  - `dataType: INT`
+  - 最终会被推断成 `hr:1:i16`
+- `scale`
+  - 不是必填
+  - 这里只是示例写全，`scale=1` 表示不缩放
+- `modbusWordOrder`
+  - 这个示例没有写，是因为 `INT` 只占 1 个寄存器，不涉及 32 位字序
+  - 如果点位是 `REAL`、`DINT`、`UDINT` 这类 32 位类型，再按需要增加 `modbusWordOrder`
 
 ### 完整配置示例
 

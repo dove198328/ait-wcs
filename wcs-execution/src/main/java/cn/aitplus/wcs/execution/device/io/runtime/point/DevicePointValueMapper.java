@@ -4,7 +4,6 @@ import cn.aitplus.wcs.core.domain.enums.DomainEnums;
 import cn.aitplus.wcs.core.domain.model.device.DevicePointDefinition;
 import cn.aitplus.wcs.core.domain.model.device.DevicePointValue;
 import cn.aitplus.wcs.execution.device.io.runtime.model.ResolvedDevicePoint;
-import cn.aitplus.wcs.execution.device.io.s7.S7AlarmConditionMatcher;
 import cn.aitplus.wcs.execution.device.io.s7.S7DataTypeValueConverter;
 import org.springframework.stereotype.Component;
 import org.springframework.util.StringUtils;
@@ -19,11 +18,11 @@ public class DevicePointValueMapper {
 
     private final S7DataTypeValueConverter dataTypeValueConverter;
     private final DeviceStatusEnumResolver deviceStatusEnumResolver;
-    private final S7AlarmConditionMatcher alarmConditionMatcher;
+    private final PointAlarmConditionMatcher alarmConditionMatcher;
 
     public DevicePointValueMapper(S7DataTypeValueConverter dataTypeValueConverter,
                                   DeviceStatusEnumResolver deviceStatusEnumResolver,
-                                  S7AlarmConditionMatcher alarmConditionMatcher) {
+                                  PointAlarmConditionMatcher alarmConditionMatcher) {
         this.dataTypeValueConverter = dataTypeValueConverter;
         this.deviceStatusEnumResolver = deviceStatusEnumResolver;
         this.alarmConditionMatcher = alarmConditionMatcher;
@@ -34,7 +33,7 @@ public class DevicePointValueMapper {
                                          Object rawValue) {
         DevicePointDefinition pointDefinition = resolvedPoint.getPointDefinition();
         Object javaValue = convertJavaValue(domain, pointDefinition, rawValue);
-        Object scaledValue = applyScale(pointDefinition, javaValue);
+        Object scaledValue = applyScale(domain, pointDefinition, javaValue);
         String displayValue = toDisplayValue(scaledValue);
         return DevicePointValue.builder()
                 .pointId(resolvedPoint.getPointId())
@@ -60,7 +59,12 @@ public class DevicePointValueMapper {
         return dataTypeValueConverter.convert(pointDefinition, rawValue);
     }
 
-    private Object applyScale(DevicePointDefinition pointDefinition, Object javaValue) {
+    private Object applyScale(DomainEnums.CommandDomain domain,
+                              DevicePointDefinition pointDefinition,
+                              Object javaValue) {
+        if (!supportsPointSemantics(domain)) {
+            return javaValue;
+        }
         if (javaValue == null || pointDefinition == null || pointDefinition.getScale() == null) {
             return javaValue;
         }
@@ -101,7 +105,7 @@ public class DevicePointValueMapper {
     private String resolveStatus(DomainEnums.CommandDomain domain,
                                  DevicePointDefinition pointDefinition,
                                  Object javaValue) {
-        if (domain != DomainEnums.CommandDomain.S7) {
+        if (!supportsPointSemantics(domain)) {
             return null;
         }
         if (!StringUtils.hasText(pointDefinition.getStatusEnum())) {
@@ -113,7 +117,7 @@ public class DevicePointValueMapper {
     private Boolean resolveAlarm(DomainEnums.CommandDomain domain,
                                  DevicePointDefinition pointDefinition,
                                  Object javaValue) {
-        if (domain != DomainEnums.CommandDomain.S7) {
+        if (!supportsPointSemantics(domain)) {
             return Boolean.FALSE;
         }
         if (!Boolean.TRUE.equals(pointDefinition.getAlarmEnabled())) {
@@ -123,5 +127,10 @@ public class DevicePointValueMapper {
             return Boolean.FALSE;
         }
         return alarmConditionMatcher.matches(javaValue, pointDefinition.getAlarmCondition());
+    }
+
+    private boolean supportsPointSemantics(DomainEnums.CommandDomain domain) {
+        return domain == DomainEnums.CommandDomain.S7
+                || domain == DomainEnums.CommandDomain.MODBUS;
     }
 }

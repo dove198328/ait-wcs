@@ -25,5 +25,4 @@ public interface DeviceTransport {
     default DeviceIoResult executeWithNewConnection(DeviceIoRequest request) {
         return execute(request);
     }
-
 }

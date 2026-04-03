@@ -19,10 +19,10 @@ import java.util.Map;
 @Component
 public class DeviceIoResultMapper {
 
-    private final DeviceIoReadResultParser readResultParser;
+    private final DeviceIoReadsParser readResultParser;
     private final DevicePointValueMapper devicePointValueMapper;
 
-    public DeviceIoResultMapper(DeviceIoReadResultParser readResultParser,
+    public DeviceIoResultMapper(DeviceIoReadsParser readResultParser,
                                 DevicePointValueMapper devicePointValueMapper) {
         this.readResultParser = readResultParser;
         this.devicePointValueMapper = devicePointValueMapper;
