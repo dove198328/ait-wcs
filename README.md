@@ -1,41 +1,41 @@
 # ait-wcs
 
-## 设备点位配置说明
+## Device Point Configuration
 
-当前项目已经打通“设备配置 + 点位配置 + adapter 调用”的主链路，模块职责如下：
+The project has wired up the main flow of **device configuration + point configuration + adapter invocation**. Module responsibilities are as follows:
 
 - `wcs-core`
-  - 放设备点位模型、点位读写结果模型
-  - 放状态枚举约定接口 `DeviceStatusValueEnum`
+  - Device point models and point read/write result models
+  - Status enum contract interface `DeviceStatusValueEnum`
 - `wcs-infra`
-  - 放 Redis 读取器
-  - 负责读取 `device:config:{deviceId}` 和 `device:points:config:{deviceId}`
+  - Redis readers
+  - Reads `device:config:{deviceId}` and `device:points:config:{deviceId}`
 - `wcs-execution`
-  - 放运行时装配、协议解析、地址转换、结果映射
-  - 统一通过 `DeviceIoFacade` 发起设备 IO
+  - Runtime assembly, protocol parsing, address conversion, and result mapping
+  - All device I/O goes through `DeviceIoFacade`
 
-## 当前支持范围
+## Current Support Scope
 
-当前这套点位扩展语义中：
+Within the current point extension semantics:
 
-- `scale` 对数值型点位按倍率换算后返回，适用于各协议
-- `dataType -> Java 类型` 转换当前只对 `S7` 生效
-- `statusEnum` 状态转换当前只对 `S7` 生效
-- `alarmEnabled + alarmCondition` 报警判断当前只对 `S7` 生效
+- `scale` — applies a multiplier to numeric points and returns the scaled value; supported across protocols
+- `dataType -> Java type` conversion — currently **S7 only**
+- `statusEnum` status mapping — currently **S7 only**
+- `alarmEnabled + alarmCondition` alarm evaluation — currently **S7 only**
 
-对于 `modbus/http/https/rcs/opc`，当前不套用 S7 的状态/报警语义规则。
+For `modbus`, `http`, `https`, `rcs`, and `opc`, S7-specific status/alarm semantics are **not** applied.
 
-其中 `Modbus` 的 `dataType` 需要特别说明：
+**Modbus `dataType` notes:**
 
-- 当 `address` 是纯数字时，`dataType` 用于推断 canonical 地址类型
-- 当 `address` 已经是 canonical 形式时，真正决定 Modbus 读写标量类型的是 canonical 地址中的后缀，如 `i16/u16/i32/u32/f32`
-- 因此 `dataType` 对 Modbus 不是唯一决定因素，但对于纯数字地址配置仍然很重要
+- When `address` is a plain number, `dataType` is used to infer the canonical address type
+- When `address` is already in canonical form, the scalar read/write type is determined by the suffix in the canonical address (e.g. `i16`, `u16`, `i32`, `u32`, `f32`)
+- Therefore `dataType` is not the sole determinant for Modbus, but it remains important for plain numeric addresses
 
-## 点位配置字段
+## Point Configuration Fields
 
-### 必填字段
+### Required Fields
 
-以下字段是必填的：
+The following fields are **required**:
 
 - `pointId`
 - `name`
@@ -43,11 +43,11 @@
 - `dataType`
 - `access`
 
-如果缺少其中任意一个，执行期会直接判定该点位配置不合法并抛出异常。
+If any of these is missing, the runtime treats the point configuration as invalid and throws an exception.
 
-### 可选字段
+### Optional Fields
 
-以下字段都是可选的：
+The following fields are **optional**:
 
 - `description`
 - `scale`
@@ -56,144 +56,135 @@
 - `alarmCondition`
 - `modbusWordOrder`
 
-处理规则如下：
+Processing rules:
 
-- 没有 `description`
-  - 仅缺少描述，不影响运行
-- 没有 `scale`
-  - 不做倍率换算，直接返回原始值
-- 配了 `scale`
-  - 仅对数值型结果生效
-  - 返回值按 `原始值 × scale` 计算
-  - 建议使用十进制值，如 `0.1`、`1`、`1000`
-- 没有 `statusEnum`
-  - 不做状态转换
-- `alarmEnabled` 不是 `true`
-  - 不做报警判断
-- `alarmEnabled` 是 `true` 但没有 `alarmCondition`
-  - 不报警
-- 没有 `modbusWordOrder`
-  - Modbus 32 位点位沿用全局 `wcs.adapter.modbus.default-word-order`
-- 配了 `modbusWordOrder`
-  - 仅对 Modbus 32 位类型有意义，如 `DINT`、`UDINT`、`REAL`
-  - 当前仅支持 `WORD_SWAP` 和 `BIG_ENDIAN`
-  - 如果 `address` 本身已经写了 canonical 后缀 `:ws` 或 `:be`，则以地址上的显式后缀为准
+- No `description`
+  - Description only; does not affect runtime behavior
+- No `scale`
+  - No scaling; returns the raw value
+- With `scale`
+  - Applies only to numeric results
+  - Return value = raw value × `scale`
+  - Use decimal values such as `0.1`, `1`, `1000`
+- No `statusEnum`
+  - No status mapping
+- `alarmEnabled` is not `true`
+  - No alarm evaluation
+- `alarmEnabled` is `true` but `alarmCondition` is missing
+  - No alarm
+- No `modbusWordOrder`
+  - Modbus 32-bit points use the global `wcs.adapter.modbus.default-word-order`
+- With `modbusWordOrder`
+  - Meaningful only for Modbus 32-bit types such as `DINT`, `UDINT`, `REAL`
+  - Supported values: `WORD_SWAP` and `BIG_ENDIAN`
+  - If the canonical address already includes `:ws` or `:be`, the explicit suffix on the address takes precedence
 
-## 字段说明
+## Field Reference
 
 ### `scale`
 
-`scale` 是通用点位语义，不是协议专属字段。
+`scale` is a **generic** point semantic, not protocol-specific.
 
-含义如下：
+- Final return value = raw value × `scale`
+- `scale=1` — no scaling
+- `scale=0.1` — multiply result by 0.1
+- `scale=1000` — multiply result by 1000
 
-- 最终返回值 = 原始值 × `scale`
-- `scale=1` 表示不放大不缩小
-- `scale=0.1` 表示结果按 0.1 倍返回
-- `scale=1000` 表示结果按 1000 倍返回
+Typical use cases:
 
-适用建议如下：
-
-- 仪表原始值是整数，但业务想按小数展示时使用
-- PLC/Modbus 返回的是缩放前原值时使用
-- 需要统一单位换算时使用
+- Instrument raw values are integers but the business layer needs decimal display
+- PLC/Modbus returns pre-scaled raw values
+- Unified unit conversion
 
 ### `modbusWordOrder`
 
-`modbusWordOrder` 是 Modbus 专属字段，用于指定 32 位数据跨两个寄存器时的字顺序。
+`modbusWordOrder` is **Modbus-specific**. It defines word order when 32-bit data spans two registers.
 
-当前支持：
+Supported values:
 
-- `WORD_SWAP`
-  - 低字在前，高字在后
-- `BIG_ENDIAN`
-  - 高字在前，低字在后
+- `WORD_SWAP` — low word first, high word second
+- `BIG_ENDIAN` — high word first, low word second
 
-注意：
+Notes:
 
-- 该字段只对 32 位类型有意义
-- 对 16 位类型如 `INT`、`UINT`、`WORD` 没有实际作用
-- 当前只处理字顺序，不处理寄存器内部字节交换
+- Meaningful only for 32-bit types
+- No effect on 16-bit types such as `INT`, `UINT`, `WORD`
+- Only word order is handled; register-internal byte swap is not applied
 
-## 点位配置示例
+## Configuration Examples
 
-### 最小配置示例
+### Minimal Example
 
 ```json
 {
   "pointId": "CKSSDW",
-  "name": "出库输送到位",
+  "name": "Outbound conveyor in position",
   "address": "DB105.DBW10",
   "dataType": "INT",
   "access": "READ_ONLY"
 }
 ```
 
-### 含 `scale` 的示例
+### Example with `scale`
 
 ```json
 {
   "pointId": "GROSS",
-  "name": "毛重",
+  "name": "Gross weight",
   "address": 1,
   "dataType": "INT",
   "scale": 0.1,
   "access": "READ_ONLY",
-  "description": "毛重 = 原始整数 × 0.1kg"
+  "description": "Gross weight = raw integer × 0.1 kg"
 }
 ```
 
-### 含 `modbusWordOrder` 的 Modbus 示例
+### Modbus Example with `modbusWordOrder`
 
 ```json
 {
   "pointId": "FLOW",
-  "name": "瞬时流量",
+  "name": "Instantaneous flow",
   "address": 10,
   "dataType": "REAL",
   "modbusWordOrder": "BIG_ENDIAN",
   "access": "READ_ONLY"
 }
 ```
-### Modbus `address` 说明
 
-Modbus 点位的 `address` 当前支持两种写法：
+### Modbus `address` Formats
 
-- 纯数字写法
-  - 例如：`1`、`20`
-  - 这类写法会结合 `dataType` 推断成 canonical 地址
-  - 例如：`address=1` 且 `dataType=INT`，会推断为 `hr:1:i16`
-  - 例如：`address=7` 且 `dataType=BOOL`，会推断为 `co:7`
+Modbus point `address` supports two forms:
 
-- canonical 写法
-  - 推荐格式：`hr|ir|co|di:offset[:i16|u16|i32|u32|f32][:ws|be]`
-  - 例如：`hr:1:i16`
-  - 例如：`hr:10:f32:be`
-  - 例如：`co:7`
+- **Plain numeric**
+  - Examples: `1`, `20`
+  - Combined with `dataType` to infer a canonical address
+  - Example: `address=1` and `dataType=INT` → `hr:1:i16`
+  - Example: `address=7` and `dataType=BOOL` → `co:7`
 
-规则说明如下：
+- **Canonical** (recommended)
+  - Format: `hr|ir|co|di:offset[:i16|u16|i32|u32|f32][:ws|be]`
+  - Examples: `hr:1:i16`, `hr:10:f32:be`, `co:7`
 
-- `hr`
-  - Holding Register
-- `ir`
-  - Input Register
-- `co`
-  - Coil
-- `di`
-  - Discrete Input
-- 如果使用纯数字 `address`
-  - `BOOL` 默认按 `co` 处理
-  - 其他数值类型默认按 `hr` 处理
-- 如果使用 canonical `address`
-  - 以 `address` 自身声明的区域、类型、字序为准
-  - 此时 `dataType` 仍然保留配置语义，但不再单独决定 adapter 的最终读写标量类型
+Rules:
+
+- `hr` — Holding Register
+- `ir` — Input Register
+- `co` — Coil
+- `di` — Discrete Input
+- Plain numeric `address`
+  - `BOOL` defaults to `co`
+  - Other numeric types default to `hr`
+- Canonical `address`
+  - Area, type, and word order come from the address itself
+  - `dataType` remains in config but no longer alone determines the adapter scalar type
 - `modbusWordOrder`
-  - 只对 32 位类型有意义，如 `DINT`、`UDINT`、`REAL`
-  - 如果 canonical 地址已经显式写了 `:ws` 或 `:be`，以 `address` 为准
+  - Meaningful only for 32-bit types (`DINT`, `UDINT`, `REAL`, etc.)
+  - If the canonical address already has `:ws` or `:be`, the address wins
 
-### 完整 Modbus `pointsConfig` 示例（以 `SBZT` 为例）
+### Full Modbus `pointsConfig` Example (`SBZT`)
 
-下面示例展示的是一个完整的 `device:points:config:{deviceId}` 结构，里面只放一个 `SBZT` 点位：
+Example of a complete `device:points:config:{deviceId}` structure with a single `SBZT` point:
 
 ```json
 {
@@ -201,90 +192,86 @@ Modbus 点位的 `address` 当前支持两种写法：
   "pointsConfig": {
     "SBZT": {
       "pointId": "SBZT",
-      "name": "设备状态",
+      "name": "Device status",
       "address": "hr:1:i16",
       "dataType": "INT",
       "scale": 1,
       "access": "READ_ONLY",
-      "description": "设备状态字，Holding Register 1，16位有符号整数"
+      "description": "Device status word, Holding Register 1, 16-bit signed integer"
     }
   }
 }
 ```
 
-补充说明：
+Notes:
 
-- 上面这个 `SBZT` 也可以写成纯数字：
+- The same `SBZT` point can use plain numeric form:
   - `address: 1`
   - `dataType: INT`
-  - 最终会被推断成 `hr:1:i16`
-- `scale`
-  - 不是必填
-  - 这里只是示例写全，`scale=1` 表示不缩放
-- `modbusWordOrder`
-  - 这个示例没有写，是因为 `INT` 只占 1 个寄存器，不涉及 32 位字序
-  - 如果点位是 `REAL`、`DINT`、`UDINT` 这类 32 位类型，再按需要增加 `modbusWordOrder`
+  - Inferred as `hr:1:i16`
+- `scale` is optional; `scale=1` means no scaling (shown here for completeness)
+- `modbusWordOrder` is omitted because `INT` uses one register (no 32-bit word order). Add it for `REAL`, `DINT`, `UDINT`, etc. when needed
 
-### 完整配置示例
+### Full Configuration Example
 
 ```json
 {
   "pointId": "SBZT",
-  "name": "设备状态",
+  "name": "Device status",
   "address": "DB4.DBW2",
   "dataType": "INT",
   "access": "READ_ONLY",
-  "description": "设备状态",
+  "description": "Device status",
   "statusEnum": "StackerCraneStatusEnum",
   "alarmEnabled": true,
   "alarmCondition": "range:[1000,2000];exclude:1041,1087"
 }
 ```
 
-## S7 数据类型到 Java 类型的转换规则
+## S7 `dataType` to Java Type Mapping
 
-当前 S7 点位读取结果会按 `dataType` 转为 Java 类型：
+S7 point reads are converted to Java types by `dataType`:
 
-- `BOOL -> Boolean`
-- `INT -> Integer`
-- `UINT -> Integer`
-- `WORD -> Integer`
-- `BYTE -> Integer`
-- `DINT -> Long`
-- `DWORD -> Long`
-- `REAL -> BigDecimal`
-- `LREAL -> BigDecimal`
-- `STRING[n] -> String`
+- `BOOL` → `Boolean`
+- `INT` → `Integer`
+- `UINT` → `Integer`
+- `WORD` → `Integer`
+- `BYTE` → `Integer`
+- `DINT` → `Long`
+- `DWORD` → `Long`
+- `REAL` → `BigDecimal`
+- `LREAL` → `BigDecimal`
+- `STRING[n]` → `String`
 
-如果不是 S7 点位，当前不做这层类型转换。
+Non-S7 points do not undergo this conversion layer.
 
-## 状态枚举说明
+## Status Enum (`statusEnum`)
 
-`statusEnum` 用来指定“设备原始值如何转换成系统状态”。
+`statusEnum` specifies how a **raw device value** maps to a **system status**.
 
-### 放置位置
+### Location
 
-状态枚举建议统一放在：
+Place status enums under:
 
 ```text
 wcs-core/src/main/java/cn/aitplus/wcs/core/domain/enums/device/
 ```
 
-原因如下：
+Rationale:
 
-- `statusEnum` 属于领域约定，不应放在 `app`
-- `execution` 需要读取它，但不应拥有它
-- 放在 `core` 最容易被多模块复用
+- `statusEnum` is a domain contract and should not live in `app`
+- `execution` reads it but should not own it
+- `core` is the natural shared module
 
-### 实现要求
+### Implementation
 
-状态枚举需要实现：
+Status enums must implement:
 
 ```java
 cn.aitplus.wcs.core.domain.model.device.DeviceStatusValueEnum;
 ```
 
-接口约定如下：
+Contract:
 
 ```java
 public interface DeviceStatusValueEnum {
@@ -293,16 +280,12 @@ public interface DeviceStatusValueEnum {
 }
 ```
 
-含义如下：
+- `getCode()` — raw value code from the device
+- `getStatus()` — unified internal status string
 
-- `getCode()`
-  - 返回设备读到的原始值编码
-- `getStatus()`
-  - 返回系统内部统一状态值
+### Enum Example
 
-### 枚举示例
-
-下面是推荐写法示例，示例代码只用于说明：
+Illustrative example only:
 
 ```java
 package cn.aitplus.wcs.core.domain.enums.device;
@@ -310,13 +293,13 @@ package cn.aitplus.wcs.core.domain.enums.device;
 import cn.aitplus.wcs.core.domain.model.device.DeviceStatusValueEnum;
 
 /**
- * 堆垛机状态枚举示例。
+ * Example stacker crane status enum.
  */
 public enum StackerCraneStatusEnum implements DeviceStatusValueEnum {
 
-    工作("1", "WORKING"),
-    待机("2", "IDLE"),
-    报警("1001", "ALARM");
+    WORKING("1", "WORKING"),
+    IDLE("2", "IDLE"),
+    ALARM("1001", "ALARM");
 
     private final String code;
     private final String status;
@@ -338,12 +321,12 @@ public enum StackerCraneStatusEnum implements DeviceStatusValueEnum {
 }
 ```
 
-对应点位配置可以这样写：
+Corresponding point configuration:
 
 ```json
 {
   "pointId": "SBZT",
-  "name": "设备状态",
+  "name": "Device status",
   "address": "DB4.DBW2",
   "dataType": "INT",
   "access": "READ_ONLY",
@@ -351,39 +334,33 @@ public enum StackerCraneStatusEnum implements DeviceStatusValueEnum {
 }
 ```
 
-## 报警规则说明
+## Alarm Rules
 
-当前报警规则只针对 S7 点位生效。
+Alarm rules apply to **S7 points only**.
 
-### 开关
+### Enable Switch
 
-只有当 `alarmEnabled=true` 时，系统才会判断报警。
+Alarm evaluation runs only when `alarmEnabled=true`.
 
-### 推荐规则格式
+### Recommended `alarmCondition` Format
 
-`alarmCondition` 建议使用结构清晰的受控格式，不建议写任意表达式。
-
-当前推荐格式如下：
+Use a structured, controlled format. Avoid arbitrary expressions.
 
 ```text
-range:[最小值,最大值];exclude:排除值1,排除值2
+range:[min,max];exclude:value1,value2
 ```
 
-含义如下：
+- `range:[1000,2000]` — values in 1000–2000 (inclusive) trigger alarm
+- `exclude:1041,1087` — values in range but listed here do **not** alarm
 
-- `range:[1000,2000]`
-  - 表示读值在 `1000` 到 `2000` 之间视为报警
-- `exclude:1041,1087`
-  - 表示虽然落在报警区间内，但 `1041`、`1087` 不报警
+### Alarm Examples
 
-### 报警规则示例
-
-#### 示例一：固定值报警
+#### Example 1: Fixed-value alarm
 
 ```json
 {
   "pointId": "SBZT",
-  "name": "设备状态",
+  "name": "Device status",
   "address": "DB4.DBW2",
   "dataType": "INT",
   "access": "READ_ONLY",
@@ -392,14 +369,14 @@ range:[最小值,最大值];exclude:排除值1,排除值2
 }
 ```
 
-表示读到这些值中的任意一个即报警。
+Any of these values triggers an alarm.
 
-#### 示例二：区间报警
+#### Example 2: Range alarm
 
 ```json
 {
   "pointId": "SBZT",
-  "name": "设备状态",
+  "name": "Device status",
   "address": "DB4.DBW2",
   "dataType": "INT",
   "access": "READ_ONLY",
@@ -408,14 +385,14 @@ range:[最小值,最大值];exclude:排除值1,排除值2
 }
 ```
 
-表示读值在 `1000` 到 `2000` 之间即报警。
+Values from 1000 to 2000 (inclusive) trigger an alarm.
 
-#### 示例三：区间报警但排除特殊值
+#### Example 3: Range with exclusions
 
 ```json
 {
   "pointId": "SBZT",
-  "name": "设备状态",
+  "name": "Device status",
   "address": "DB4.DBW2",
   "dataType": "INT",
   "access": "READ_ONLY",
@@ -424,41 +401,40 @@ range:[最小值,最大值];exclude:排除值1,排除值2
 }
 ```
 
-表示：
+Meaning:
 
-- 大于等于 `1000`
-- 且小于等于 `2000`
-- 但 `1041` 和 `1087` 不报警
+- Value ≥ 1000 and ≤ 2000 → alarm
+- Except `1041` and `1087` → no alarm
 
-#### 示例四：更复杂的多段规则示例
+#### Example 4: Multi-segment rules (documentation format)
 
-如果后续有需要，建议继续沿用受控格式扩展，例如：
+For future extension, keep the controlled format, e.g.:
 
 ```text
 range:[1000,2000];exclude:1041,1087|range:[3000,3999]
 ```
 
-含义是：
+Meaning:
 
-- `1000` 到 `2000` 报警，但排除 `1041`、`1087`
-- 或者 `3000` 到 `3999` 也报警
+- 1000–2000 alarms, excluding 1041 and 1087
+- **Or** 3000–3999 also alarms
 
-说明如下：
+Note:
 
-- 这是推荐的文档格式示例
-- 当前代码如果还没有实现这类复杂规则解析，不应直接使用
-- 如需启用，需要先补执行层解析逻辑
+- This is a **recommended documentation format**
+- Do not use until execution-layer parsing is implemented
+- Add parser support in the execution layer before enabling
 
-## 运行时处理顺序
+## Runtime Processing Order
 
-当前设备点位读取的处理顺序如下：
+Device point read pipeline:
 
-1. 根据 `deviceId` 读取 `deviceConfig`
-2. 根据 `deviceId` 读取 `pointsConfig`
-3. 根据 `protocolType` 选择 adapter
-4. 如果是 `S7`，先把点位地址转成 PLC4X 地址
-5. 调用 adapter 读取原始值
-6. 如果协议需要类型转换，先按协议规则转成运行时值
-7. 如果配置了 `scale`，对数值结果做倍率换算
-8. 如果配置了 `statusEnum`，再做状态转换
-9. 如果开启了报警，再按 `alarmCondition` 判断是否报警
+1. Load `deviceConfig` by `deviceId`
+2. Load `pointsConfig` by `deviceId`
+3. Select adapter by `protocolType`
+4. For **S7**, convert point address to PLC4X address
+5. Read raw value via adapter
+6. Apply protocol-specific type conversion when required
+7. Apply `scale` to numeric results if configured
+8. Apply `statusEnum` mapping if configured
+9. Evaluate alarm via `alarmCondition` if alarms are enabled
